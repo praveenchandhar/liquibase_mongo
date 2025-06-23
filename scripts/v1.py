@@ -116,7 +116,8 @@ LOCAL_REFERENCES = {
 def extract_collection_name_and_command(query):
     """
     Extracts the MongoDB collection name and command type from the query.
-    Supports multiple formats for supported commands.
+    Supports commands like `db.createCollection()`, `db.collection.insertMany()`, etc.
+    Handles both single and double quotes.
     """
     commands = [
         "createCollection", "createIndex", "insertOne", "insertMany",
@@ -125,25 +126,26 @@ def extract_collection_name_and_command(query):
     ]
 
     # Match for db.collection.command() and db.getCollection("collection_name")
-    match = re.search(r'db\.(?:getCollection\("([^"]+)"\)|(\w+))\.(\w+)\(', query)
+    match = re.search(r'db\.(?:getCollection\(["\']([^"\']+)["\']\)|(\w+))\.(\w+)\(', query)
     if match:
         collection_name = match.group(1) or match.group(2)
         command = match.group(3) if match.group(3) in commands else None
         if command:
             return collection_name, command
 
-    # Match for db.createCollection("collection_name")
-    match_create_collection = re.search(r'db\.createCollection\("([^"]+)"\)', query)
+    # Match for db.createCollection("collection_name") or db.createCollection('collection_name')
+    match_create_collection = re.search(r'db\.createCollection\(["\']([^"\']+)["\']\)', query)
     if match_create_collection:
         collection_name = match_create_collection.group(1)
         return collection_name, "createCollection"
 
-    # Match for db.dropCollection("collection_name")
-    match_drop_collection = re.search(r'db\.dropCollection\("([^"]+)"\)', query)
+    # Match for db.dropCollection("collection_name") or db.dropCollection('collection_name')
+    match_drop_collection = re.search(r'db\.dropCollection\(["\']([^"\']+)["\']\)', query)
     if match_drop_collection:
         collection_name = match_drop_collection.group(1)
         return collection_name, "dropCollections"
 
+    # No match for any commands
     return None, None
 
 
