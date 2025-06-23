@@ -1,0 +1,42 @@
+name: Liquibase MongoDB Workflow
+
+on:
+  workflow_dispatch:    # Trigger manually via GitHub Actions UI
+
+jobs:
+  generate_changeset:
+    name: Generate Liquibase Changeset
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository code
+      - name: Checkout Repository Code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python environment
+      - name: Set Up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+
+      # Step 3: Install Python Dependencies
+      - name: Install Python Dependencies
+        run: |
+          pip install openai
+
+      # Step 4: Run Python Script to Generate Liquibase XML
+      - name: Generate Liquibase XML
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # Reference to the stored OpenAI API key
+        run: |
+          python scripts/v1.py \
+            --query "db.social_posts.insertMany([{ '_id': ObjectId(), 'postId': 'POST-2025-001', 'content': 'AI is amazing!', 'likes': 10 }])" \
+            --changeset-id "1.1.1" \
+            --author "praveen" \
+            --context "liquibase_test"
+
+      # Step 5: Display Generated XML Changeset
+      - name: Display Generated Liquibase XML
+        run: |
+          echo "::set-output name=xml_content::$(cat changeset/changelog.xml)"
+          cat changeset/changelog.xml
