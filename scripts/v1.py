@@ -113,11 +113,49 @@ LOCAL_REFERENCES = {
 }
 
 
+def validate_and_standardize_query(query):
+    """
+    Validate and standardize MongoDB query via OpenAI.
+    """
+    prompt = f"Standardize and validate the MongoDB query:\n{query}\nEnsure proper syntax, consistent formatting, and logical correctness."
+    try:
+        response = openai.ChatCompletion.create(
+            deployment_id="gpt-4o-Engg-AI-Assitant",
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert in MongoDB query processing and optimization."},
+                {"role": "user", "content": prompt}
+            ],
+        )
+        standardized_query = response['choices'][0]['message']['content'].strip()
+        return standardized_query
+    except Exception as e:
+        return f"Error during OpenAI query validation: {e}"
+
+
+def validate_syntax_via_openai(xml_output):
+    """
+    Validate and ensure the syntax of the Liquibase XML output using OpenAI.
+    """
+    prompt = f"Validate the syntax of this Liquibase XML output:\n{xml_output}\nFix any issues and return the corrected XML."
+    try:
+        response = openai.ChatCompletion.create(
+            deployment_id="gpt-4o-Engg-AI-Assitant",
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert in Liquibase XML syntax validation."},
+                {"role": "user", "content": prompt}
+            ],
+        )
+        corrected_xml = response['choices'][0]['message']['content'].strip()
+        return corrected_xml
+    except Exception as e:
+        return f"Error during OpenAI XML validation: {e}"
+
+
 def extract_collection_name_and_command(query):
     """
-    Extracts the MongoDB collection name and command type from the query.
-    Supports commands like `db.createCollection()`, `db.collection.insertMany()`, etc.
-    Handles both single and double quotes.
+    Extract MongoDB collection name and command from the query. Handles both single and double quotes.
     """
     commands = [
         "createCollection", "createIndex", "insertOne", "insertMany",
@@ -125,7 +163,6 @@ def extract_collection_name_and_command(query):
         "dropCollections"
     ]
 
-    # Match for db.collection.command() and db.getCollection("collection_name")
     match = re.search(r'db\.(?:getCollection\(["\']([^"\']+)["\']\)|(\w+))\.(\w+)\(', query)
     if match:
         collection_name = match.group(1) or match.group(2)
@@ -133,89 +170,64 @@ def extract_collection_name_and_command(query):
         if command:
             return collection_name, command
 
-    # Match for db.createCollection("collection_name") or db.createCollection('collection_name')
     match_create_collection = re.search(r'db\.createCollection\(["\']([^"\']+)["\']\)', query)
     if match_create_collection:
         collection_name = match_create_collection.group(1)
         return collection_name, "createCollection"
 
-    # Match for db.dropCollection("collection_name") or db.dropCollection('collection_name')
-    match_drop_collection = re.search(r'db\.dropCollection\(["\']([^"\']+)["\']\)', query)
-    if match_drop_collection:
-        collection_name = match_drop_collection.group(1)
-        return collection_name, "dropCollections"
-
-    # No match for any commands
     return None, None
-
-
-def validate_and_standardize_query(query):
-    """
-    Standardizes and validates the MongoDB query using OpenAI.
-    """
-    prompt = f"Standardize the following MongoDB query:\n{query}"
-    try:
-        response = openai.ChatCompletion.create(
-            deployment_id="gpt-4o-Engg-AI-Assitant",
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are an expert in MongoDB query transformation."},
-                {"role": "user", "content": prompt},
-            ],
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except Exception as e:
-        return f"Error using OpenAI for standardizing query: {e}"
-
-
-def append_to_changelog(corrected_xml):
-    """
-    Append the corrected Liquibase changeset XML to changelog.xml.
-    """
-    changelog_dir = "changeset"
-    changelog_file = os.path.join(changelog_dir, "changelog.xml")
-
-    # Ensure the directory exists
-    os.makedirs(changelog_dir, exist_ok=True)
-
-    with open(changelog_file, "a") as f:
-        f.write("\n" + corrected_xml + "\n")
-    print(f"✅ Successfully appended to {changelog_file}.")
 
 
 def generate_liquibase_xml(query, changeset_id, author, context):
     """
-    Generate Liquibase XML from a MongoDB query.
+    Generate Liquibase XML from MongoDB query using local references and OpenAI validation.
     """
-    collection_name, command_type = extract_collection_name_and_command(query)
-    if not command_type or command_type not in LOCAL_REFERENCES:
-        return None, f"Error: Unsupported or invalid command in query: {query}"
+    standardized_query = validate_and_standardize_query(query)
+    print(f"[DEBUG] Standardized Query: {standardized_query}")
 
-    # Format the XML based on the command template
+    collection_name, command_type = extract_collection_name_and_command(standardized_query)
+    if not command_type or command_type not in LOCAL_REFERENCES:
+        return None, f"Error: Unsupported command or failed to extract information from query."
+
     template = LOCAL_REFERENCES[command_type]
-    xml_output = template.format(
+    liquibase_xml = template.format(
         changeset_id=changeset_id,
         author=author,
         context=context,
         collection_name=collection_name
     )
-    return xml_output, None
+    corrected_xml = validate_syntax_via_openai(liquibase_xml)
+
+    return corrected_xml, None
+
+
+def append_to_changelog(corrected_xml):
+    """
+    Append corrected Liquibase XML to changelog file.
+    """
+    changelog_dir = "changeset"
+    changelog_file = os.path.join(changelog_dir, "changelog.xml")
+    os.makedirs(changelog_dir, exist_ok=True)
+
+    with open(changelog_file, "a") as f:
+        f.write("\n" + corrected_xml + "\n")
+    print(f"✅ XML successfully appended to {changelog_file}.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate Liquibase XML from MongoDB query.")
-    parser.add_argument("--query", required=True, help="MongoDB query (e.g., db.collection.insertMany([...]).")
+    parser.add_argument("--query", required=True, help="MongoDB query to process and convert.")
     parser.add_argument("--changeset-id", required=True, help="Liquibase Changeset ID.")
     parser.add_argument("--author", required=True, help="Author of the changeset.")
-    parser.add_argument("--context", required=True, help="Database context used in Liquibase.")
+    parser.add_argument("--context", required=True, help="Database context.")
     args = parser.parse_args()
 
-    print("Processing query into Liquibase XML...\n")
-    liquibase_xml, error = generate_liquibase_xml(args.query, args.changeset_id, args.author, args.context)
+    print("🔄 Processing MongoDB query...\n")
+    corrected_xml, error = generate_liquibase_xml(args.query, args.changeset_id, args.author, args.context)
 
     if error:
-        print(f"❌ {error}")
+        print(f"❌ Error: {error}")
         exit(1)
 
-    print(f"✅ Generated Liquibase XML:\n{liquibase_xml}")
-    append_to_changelog(liquibase_xml)
+    print(f"✅ Final Liquibase XML:\n{corrected_xml}")
+    append_to_changelog(corrected_xml)
