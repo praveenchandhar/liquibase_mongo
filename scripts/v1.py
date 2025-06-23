@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 # OpenAI API Configuration
 openai.api_type = "azure"
 openai.api_base = "https://sequoia-engg-openai.openai.azure.com/"  # Replace with your Azure endpoint
-openai.api_key = "FdGJdU7Uvx6eAwZZPNZ9J8zWI8dprYxRm64BisoNDqF7ncKdf4BhJQQJ99BDACYeBjFXJ3w3AAABACOGtl7F"  # Replace with your key
+openai.api_key = os.environ.get("OPENAI_API_KEY")  # Replace with your key
 openai.api_version = "2024-12-01-preview"
 
 # Liquibase command templates
