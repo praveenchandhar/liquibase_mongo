@@ -12,6 +12,37 @@ openai.api_version = "2024-12-01-preview"
 
 # Liquibase command templates
 LOCAL_REFERENCES = {
+    "createCollection": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:createCollection collectionName="{collection_name}" />
+</changeSet>
+""",
+    "createIndex": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:runCommand>
+        <mongodb:command><![CDATA[
+        {{
+            "createIndexes": "{collection_name}",
+            "indexes": [
+            {{
+                "key": {index_key},
+                "name": "{index_name}"
+            }}
+            ]
+        }}
+        ]]></mongodb:command>
+    </mongodb:runCommand>
+</changeSet>
+""",
+    "insertOne": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:insertOne collectionName="{collection_name}">
+        <mongodb:document><![CDATA[
+        {document}
+        ]]></mongodb:document>
+    </mongodb:insertOne>
+</changeSet>
+""",
     "insertMany": """
 <changeSet id="{changeset_id}" author="{author}" context="{context}">
     <mongodb:insertMany collectionName="{collection_name}">
@@ -19,6 +50,64 @@ LOCAL_REFERENCES = {
         {documents}
         ]]></mongodb:documents>
     </mongodb:insertMany>
+</changeSet>
+""",
+    "updateOne": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:runCommand>
+        <mongodb:command><![CDATA[
+        {update_payload}
+        ]]></mongodb:command>
+    </mongodb:runCommand>
+</changeSet>
+""",
+    "updateMany": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:runCommand>
+        <mongodb:command><![CDATA[
+        {update_payload}
+        ]]></mongodb:command>
+    </mongodb:runCommand>
+</changeSet>
+""",
+    "deleteOne": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:runCommand>
+        <mongodb:command><![CDATA[
+        {delete_payload}
+        ]]></mongodb:command>
+    </mongodb:runCommand>
+</changeSet>
+""",
+    "deleteMany": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:runCommand>
+        <mongodb:command><![CDATA[
+        {{
+            "delete": "{collection_name}",
+            "deletes": [
+            {{
+                "q": {filter_payload},
+                "limit": {limit}
+            }}
+            ]
+        }}
+        ]]></mongodb:command>
+    </mongodb:runCommand>
+</changeSet>
+""",
+    "dropIndex": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:dropIndex collectionName="{collection_name}" indexName="{index_name}">
+        <mongodb:keys>
+        {index_key}
+        </mongodb:keys>
+    </mongodb:dropIndex>
+</changeSet>
+""",
+    "dropCollections": """
+<changeSet id="{changeset_id}" author="{author}" context="{context}">
+    <mongodb:dropCollection collectionName="{collection_name}" />
 </changeSet>
 """
 }
