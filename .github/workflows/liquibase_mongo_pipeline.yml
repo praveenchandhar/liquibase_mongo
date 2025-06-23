@@ -35,7 +35,7 @@ jobs:
       # Step 3: Install Python Dependencies
       - name: Install Python Dependencies
         run: |
-          pip install openai
+          pip install "openai==0.28"
 
       # Step 4: Run Python Script to Generate Liquibase XML
       - name: Generate Liquibase XML
