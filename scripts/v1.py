@@ -180,24 +180,46 @@ def extract_collection_name_and_command(query):
 
 def generate_liquibase_xml(query, changeset_id, author, context):
     """
-    Generate Liquibase XML from MongoDB query using local references and OpenAI validation.
+    Generate Liquibase XML from MongoDB query using local references
+    and OpenAI validation.
     """
+    # Step 1: Standardize the MongoDB query
     standardized_query = validate_and_standardize_query(query)
     print(f"[DEBUG] Standardized Query: {standardized_query}")
 
+    # Step 2: Extract collection name and command type
     collection_name, command_type = extract_collection_name_and_command(standardized_query)
     if not command_type or command_type not in LOCAL_REFERENCES:
         return None, f"Error: Unsupported command or failed to extract information from query."
 
-    template = LOCAL_REFERENCES[command_type]
-    liquibase_xml = template.format(
-        changeset_id=changeset_id,
-        author=author,
-        context=context,
-        collection_name=collection_name
-    )
-    corrected_xml = validate_syntax_via_openai(liquibase_xml)
+    # Step 3: Extract `documents` field for insertMany (if applicable)
+    documents = None
+    if command_type == "insertMany":
+        try:
+            # Extract the `documents` array using regex for insertMany
+            match = re.search(r"insertMany\(\s*\[(.*)\]\)", standardized_query, re.DOTALL)
+            if match:
+                documents = match.group(1).strip()
+        except Exception as e:
+            return None, f"Error extracting documents from query: {e}"
 
+    # Step 4: Format the XML template
+    template = LOCAL_REFERENCES[command_type]
+    try:
+        # Pass `documents` only if it's required
+        liquibase_xml = template.format(
+            changeset_id=changeset_id,
+            author=author,
+            context=context,
+            collection_name=collection_name,
+            # Pass `documents` to insertMany template
+            documents=documents if command_type == "insertMany" else ""
+        )
+    except KeyError as e:
+        return None, f"Error: Missing placeholder in template: {e}"
+
+    # Step 5: Validate and correct the Liquibase XML via OpenAI
+    corrected_xml = validate_syntax_via_openai(liquibase_xml)
     return corrected_xml, None
 
 
