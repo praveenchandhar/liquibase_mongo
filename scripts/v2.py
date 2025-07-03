@@ -149,25 +149,39 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
 
 def append_to_changelog(changeset_xml, changelog_path="changeset/changelog.xml"):
     """Append the generated <changeSet> block inside <databaseChangeLog>."""
+    # Resolve changelog path relative to the script's location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    changelog_path = os.path.abspath(os.path.join(script_dir, changelog_path))
+
+    # Debugging: Print the resolved path
+    print(f"Resolved changelog file path: {changelog_path}")
+
+    # Check if the changelog file exists
     if not os.path.exists(changelog_path):
         raise FileNotFoundError(f"Changelog file '{changelog_path}' does not exist.")
 
+    # Read the current content of the changelog file
     with open(changelog_path, "r") as f:
         content = f.read()
 
-    # Check if <databaseChangeLog> exists
+    # Verify that the file contains a valid <databaseChangeLog> structure
     if "<databaseChangeLog" not in content or "</databaseChangeLog>" not in content:
         raise ValueError("Invalid changelog structure. Missing <databaseChangeLog> tags.")
 
-    # Append <changeSet> before </databaseChangeLog>
+    # Check if the changeset is already present (id + author match)
+    if changeset_xml.strip() in content:
+        print("⚠️ Changeset already exists in the changelog. No changes made.")
+        return
+
+    # Append <changeSet> before the closing </databaseChangeLog>
     updated_content = re.sub(
-        r"(</databaseChangeLog>)",
-        f"\n{changeset_xml.strip()}\n\\1",  # Append before closing </databaseChangeLog>
+        r"(</databaseChangeLog>)",  # Find the closing </databaseChangeLog>
+        f"\n{changeset_xml.strip()}\n\\1",  # Insert the changeset before it
         content,
         flags=re.DOTALL
     )
 
-    # Write back the updated content to the changelog file
+    # Write the updated content back to the changelog file
     with open(changelog_path, "w") as f:
         f.write(updated_content)
 
