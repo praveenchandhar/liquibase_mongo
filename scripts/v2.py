@@ -65,10 +65,10 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
 """
 
     # Handle dropCollection
-    elif "dropCollection" in mongodb_query or "drop" in mongodb_query:
-        match = re.search(r'db\.(?:getCollection\("([^"]+)"\)|([^.]+))\.drop\(\)', mongodb_query)
+    elif "dropCollection" in mongodb_query:
+        match = re.search(r'db\.dropCollection\("([^"]+)"\)', mongodb_query)
         if match:
-            collection_name = match.group(1) or match.group(2)
+            collection_name = match.group(1)
             xml_content = f"""
 <changeSet id="{changeset_id}" author="{author_name}" context="{context}">
     <mongodb:dropCollection collectionName="{collection_name}" />
