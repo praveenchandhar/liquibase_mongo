@@ -38,20 +38,18 @@ jobs:
           pip install "openai==0.28"
 
       # Step 4: Debug Inputs
-      - name: Debug Inputs
+      - name: Debug Input Handling
         run: |
-          echo Query: "${{ inputs.query }}"
-          echo Changeset ID: "${{ inputs.changeset_id }}"
-          echo Author: "${{ inputs.author }}"
-          echo Context: "${{ inputs.context }}"
+          echo "Raw Query Input: '${{ inputs.query }}'"
+          echo "Query Passed to Python: $(printf '%s' '${{ inputs.query }}')"
 
       # Step 5: Run Python Script to Generate Liquibase XML
       - name: Generate Liquibase XML
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}    # Reference to the stored OpenAI API key
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/v2.py \
-            --query "${{ inputs.query }}" \
+            --query "$(printf '%s' '${{ inputs.query }}')" \
             --changeset-id "${{ inputs.changeset_id }}" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}"
