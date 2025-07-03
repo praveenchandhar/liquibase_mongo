@@ -8,17 +8,6 @@
     http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
 
 
-  
 
-<changeSet id="1.1" author="praveen" context="liquibase_test">
-    <mongodb:createCollection collectionName="test" />
-</changeSet>
-
-<changeSet id="1.2" author="praveen" context="liquibase_test">
-    <mongodb:createCollection collectionName="praveen" />
-</changeSet>
-
-<changeSet id="1.2" author="praveen" context="liquibase_test">
-    <mongodb:createCollection collectionName="test" />
-</changeSet>
+    
 </databaseChangeLog>
