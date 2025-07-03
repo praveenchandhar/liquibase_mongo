@@ -34,18 +34,15 @@ jobs:
 
       # Step 3: Install Python Dependencies
       - name: Install Python Dependencies
-        run: |
-          pip install "openai==0.28"
+        run: pip install "openai==0.28"
 
       # Step 4: Create and Switch to a New Branch
       - name: Create and Switch to Branch
-        run: |
-          git checkout -b "feature/${{ inputs.ticketID }}"
+        run: git checkout -b "feature/${{ inputs.ticketID }}"
 
       # Step 5: Run Python Script to Generate and Append Liquibase Changeset
       - name: Generate and Append Liquibase Changeset
         env:
-          # Pass the OpenAI API key or any other environment variable if needed
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/v2.py \
@@ -54,7 +51,7 @@ jobs:
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
-      # Step 6: Commit Changes to the Branch Without Pushing
+      # Step 6: Commit Changes to the Branch
       - name: Commit Changes to Feature Branch
         run: |
           git config user.name "praveen_automation"
@@ -64,13 +61,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 7: Push Feature Branch for Pull Request
+      # Step 7: Push Feature Branch
       - name: Push Feature Branch
-        run: |
-          git push --set-upstream origin "feature/${{ inputs.ticketID }}"
+        run: git push --set-upstream origin "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          
       # Step 8: Create Pull Request
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
@@ -86,22 +82,13 @@ jobs:
             - **Context**: ${{ inputs.context }}
 
   await_approval:
-    name: Await Approval Comment on PR
+    name: Await Manual Approval on PR
     runs-on: ubuntu-latest
     needs: generate_changeset
 
     steps:
-      # Step 1: Monitor PR Comments for Approval
-      - name: Wait for Approval via PR Comments
-        uses: behaviorbot/validate-comments@v1.4.1
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          comment-body: "approve"
-          validate-only: false
-
-      # Step 2: Merge Pull Request if Approved
-      - name: Merge Pull Request
-        if: success()
+      # Step 1: Check Approval via Comments
+      - name: Poll for Approval via PR Comments
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -110,22 +97,58 @@ jobs:
             const { data: pullRequests } = await github.pulls.list({
               owner,
               repo,
-              head: context.repo + ':' + 'feature/${{ needs.generate_changeset.outputs.ticketID }}'
+              head: context.repo + ':' + 'feature/${{ inputs.ticketID }}',
+              state: 'open'
             })
 
-            if (pullRequests.length > 0) {
-              const { number: prNumber } = pullRequests[0]
-              await github.pulls.merge({
-                owner,
-                repo,
-                pull_number: prNumber
-              })
-              console.log(`Pull Request #${prNumber} merged successfully.`)
-            } else {
-              throw new Error('No open Pull Request found to merge.')
+            if (pullRequests.length === 0) throw new Error('No open pull request found.')
 
-      # Step 3: Notify Failure If No Approval Comment
-      - name: Notify Workflow Failure
-        if: failure()
-        run: |
-          echo "::error:: Workflow approval was denied. Please re-trigger with correct details."
+            const prNumber = pullRequests[0].number
+            const { data: comments } = await github.issues.listComments({
+              owner,
+              repo,
+              issue_number: prNumber
+            })
+
+            const approved = comments.some(comment => comment.body.toLowerCase().includes('approve'))
+            
+            if (!approved) throw new Error('Approval not found. Add a comment with "approve" on the pull request.')
+            
+            console.log('Pull request approved!')
+
+  merge_pull_request:
+    name: Merge Pull Request After Approval
+    runs-on: ubuntu-latest
+    needs: await_approval
+
+    steps:
+      # Step 1: Merge Pull Request
+      - name: Merge Pull Request
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo
+            const { data: pullRequests } = await github.pulls.list({
+              owner,
+              repo,
+              head: context.repo + ':' + 'feature/${{ inputs.ticketID }}',
+              state: 'open'
+            })
+
+            if (pullRequests.length === 0) throw new Error('No open pull request found.')
+
+            const prNumber = pullRequests[0].number
+            await github.pulls.merge({
+              owner,
+              repo,
+              pull_number: prNumber
+            })
+
+            console.log(`Pull Request #${prNumber} has been successfully merged.`)
+
+      # Step 2: Delete Feature Branch
+      - name: Delete Feature Branch
+        run: git push origin --delete "feature/${{ inputs.ticketID }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
