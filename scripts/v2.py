@@ -149,6 +149,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print("🔄 Processing MongoDB query...\n")
+    print(f"Raw MongoDB Query Received: {args.query}")  # Debug input
     generate_changelog(
         mongodb_query=args.query,
         changeset_id=args.changeset_id,
