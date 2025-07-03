@@ -1,23 +1,26 @@
 import re
-import sys
+import argparse
+
 
 def correct_json_syntax(json_string):
     """Correct common JSON syntax issues."""
     # Quote unquoted keys (e.g., `name:` becomes `"name":`)
     json_string = re.sub(r'(?<!")\b(\w+)\b\s*:', r'"\1":', json_string)
-    
+
     # Quote unquoted values if they're not JSON-like
     json_string = re.sub(r':\s*(?![\[{"])(\w+)', r': "\1"', json_string)
 
     # Replace single quotes with double quotes
     json_string = json_string.replace("'", '"')
-    
+
     return json_string
+
 
 def format_json_string(json_string):
     """Format the JSON string to ensure correct structure."""
     json_string = correct_json_syntax(json_string)
     return json_string.strip()
+
 
 def generate_changelog(mongodb_query, changeset_id, author_name, context):
     # Normalize the whitespace in the input query
@@ -135,15 +138,20 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     # Print the XML content to the console
     print(f"Generated XML Content:\n{xml_content.strip()}")
 
-# Read command-line arguments for parameters
-if __name__ == "__main__":
-    if len(sys.argv) != 5:
-        print("Usage: python v1.py <mongodb_query> <changeset_id> <author_name> <context>")
-        sys.exit(1)
 
+if __name__ == "__main__":
+    # Use argparse to define and parse command-line arguments
+    parser = argparse.ArgumentParser(description="Generate Liquibase XML content from MongoDB query.")
+    parser.add_argument("--query", required=True, help="MongoDB query to process and convert.")
+    parser.add_argument("--changeset-id", required=True, help="Liquibase Changeset ID.")
+    parser.add_argument("--author", required=True, help="Author of the changeset.")
+    parser.add_argument("--context", required=True, help="Database context.")
+    args = parser.parse_args()
+
+    print("🔄 Processing MongoDB query...\n")
     generate_changelog(
-        mongodb_query=sys.argv[1],
-        changeset_id=sys.argv[2],
-        author_name=sys.argv[3],
-        context=sys.argv[4]
+        mongodb_query=args.query,
+        changeset_id=args.changeset_id,
+        author_name=args.author,
+        context=args.context
     )
