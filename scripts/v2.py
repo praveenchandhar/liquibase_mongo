@@ -1,18 +1,13 @@
 import re
 import argparse
+import os
 
 
 def correct_json_syntax(json_string):
     """Correct common JSON syntax issues."""
-    # Quote unquoted keys (e.g., `name:` becomes `"name":`)
     json_string = re.sub(r'(?<!")\b(\w+)\b\s*:', r'"\1":', json_string)
-
-    # Quote unquoted values if they're not JSON-like
     json_string = re.sub(r':\s*(?![\[{"])(\w+)', r': "\1"', json_string)
-
-    # Replace single quotes with double quotes
     json_string = json_string.replace("'", '"')
-
     return json_string
 
 
@@ -23,16 +18,15 @@ def format_json_string(json_string):
 
 
 def generate_changelog(mongodb_query, changeset_id, author_name, context):
-    # Debug received input
+    """Generate Liquibase changeset XML content."""
     print(f"Raw MongoDB Query Received: {mongodb_query}")
-    
-    # Normalize the whitespace in the input query
+
     mongodb_query = re.sub(r'\s+', ' ', mongodb_query).strip()
     print(f"Normalized MongoDB Query: {mongodb_query}")
 
-    # Initialize xml_content
     xml_content = ""
 
+    # Handle createCollection
     if "createCollection" in mongodb_query:
         match = re.search(r'createCollection\("([^"]+)"', mongodb_query)
         if match:
@@ -42,6 +36,8 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     <mongodb:createCollection collectionName="{collection_name}" />
 </changeSet>
 """
+
+    # Handle dropCollection
     elif "dropCollection" in mongodb_query or "drop" in mongodb_query:
         match = re.search(r'db\.(?:getCollection\("([^"]+)"\)|([^.]+))\.drop\(\)', mongodb_query)
         if match:
@@ -51,12 +47,14 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     <mongodb:dropCollection collectionName="{collection_name}" />
 </changeSet>
 """
+
+    # Handle insertOne
     elif "insertOne" in mongodb_query:
         match = re.search(r'db\.(?:getCollection\("([^"]+)"\)|([^.]+))\.insertOne\((.*?)\)', mongodb_query, re.DOTALL)
         if match:
             collection_name = match.group(1) or match.group(2)
             document = match.group(3).strip()
-            document = correct_json_syntax(document)  # Ensure valid JSON
+            document = correct_json_syntax(document)
             xml_content = f"""
 <changeSet id="{changeset_id}" author="{author_name}" context="{context}">
     <mongodb:insertOne collectionName="{collection_name}">
@@ -66,12 +64,14 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     </mongodb:insertOne>
 </changeSet>
 """
+
+    # Handle insertMany
     elif "insertMany" in mongodb_query:
         match = re.search(r'db\.(?:getCollection\("([^"]+)"\)|([^.]+))\.insertMany\((.*?)\)', mongodb_query, re.DOTALL)
         if match:
             collection_name = match.group(1) or match.group(2)
             documents = match.group(3).strip()
-            documents = correct_json_syntax(documents)  # Ensure valid JSON
+            documents = correct_json_syntax(documents)
             xml_content = f"""
 <changeSet id="{changeset_id}" author="{author_name}" context="{context}">
     <mongodb:insertMany collectionName="{collection_name}">
@@ -81,6 +81,8 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     </mongodb:insertMany>
 </changeSet>
 """
+
+    # Handle updateOne and updateMany
     elif "updateOne" in mongodb_query or "updateMany" in mongodb_query:
         operation = "updateOne" if "updateOne" in mongodb_query else "updateMany"
         match = re.search(r'db\.(?:getCollection\("([^"]+)"\)|([^.]+))\.' + operation + r'\((.*?),\s*(.*?)\)', mongodb_query, re.DOTALL)
@@ -109,6 +111,8 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     </mongodb:runCommand>
 </changeSet>
 """
+
+    # Handle deleteOne and deleteMany
     elif "deleteOne" in mongodb_query or "deleteMany" in mongodb_query:
         operation = "deleteOne" if "deleteOne" in mongodb_query else "deleteMany"
         match = re.search(r'db\.(?:getCollection\("([^"]+)"\)|([^.]+))\.' + operation + r'\((.*?)\)', mongodb_query, re.DOTALL)
@@ -134,28 +138,40 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     </mongodb:runCommand>
 </changeSet>
 """
-    else:
-        print("Error: The MongoDB query format is not recognized.")
-        return
 
-    # Print the XML content to the console
+    else:
+        print("Error: Unsupported MongoDB command or invalid query.")
+        return None
+
     print(f"Generated XML Content:\n{xml_content.strip()}")
+    return xml_content.strip()
+
+
+def append_to_changelog(changeset_xml, changelog_path="changelog.xml"):
+    """Append the generated <changeSet> block to changelog.xml."""
+    os.makedirs(os.path.dirname(changelog_path), exist_ok=True)  # Create directory if not exists
+    # Open changelog.xml in append mode
+    with open(changelog_path, "a") as f:
+        f.write("\n" + changeset_xml + "\n")
+    print(f"✅ Changeset successfully appended to {changelog_path}.")
 
 
 if __name__ == "__main__":
-    # Use argparse to define and parse command-line arguments
-    parser = argparse.ArgumentParser(description="Generate Liquibase XML content from MongoDB query.")
+    parser = argparse.ArgumentParser(description="Generate and append Liquibase XML content from MongoDB query.")
     parser.add_argument("--query", required=True, help="MongoDB query to process and convert.")
     parser.add_argument("--changeset-id", required=True, help="Liquibase Changeset ID.")
     parser.add_argument("--author", required=True, help="Author of the changeset.")
     parser.add_argument("--context", required=True, help="Database context.")
+    parser.add_argument("--changelog", default="changelog.xml", help="Path to changelog file to append to.")
     args = parser.parse_args()
 
     print("🔄 Processing MongoDB query...\n")
-    print(f"Raw MongoDB Query Received: {args.query}")
-    generate_changelog(
+    changeset_xml = generate_changelog(
         mongodb_query=args.query,
         changeset_id=args.changeset_id,
         author_name=args.author,
         context=args.context
     )
+
+    if changeset_xml:
+        append_to_changelog(changeset_xml, args.changelog)
