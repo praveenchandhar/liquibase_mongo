@@ -64,23 +64,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 7: Wait for Approval
-      - name: Wait for Approval
-        uses: dorny/await-check@v1
-        with:
-          check-name: "Approvers Approval Required"
-          ref: ${{ github.ref }}
-          labels: |
-            Liquibase Approval Required
-
-      # Step 8: Push Feature Branch for Pull Request
+      # Step 7: Push Feature Branch for Pull Request
       - name: Push Feature Branch
         run: |
           git push --set-upstream origin "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 9: Create Pull Request
+      # Step 8: Create Pull Request
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
@@ -93,6 +84,15 @@ jobs:
             - **Query**: ${{ inputs.query }}
             - **Author**: ${{ inputs.author }}
             - **Context**: ${{ inputs.context }}
+          labels: "awaiting-approval"
+
+      # Step 9: Wait for Labels on PR
+      - name: Wait for Approval via Labels
+        uses: peter-evans/wait-for-label@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          labels: "approved"
+          timeout: 3600 # 1 hour timeout
 
       # Step 10: Merge Pull Request if Approved
       - name: Merge Pull Request
@@ -107,7 +107,7 @@ jobs:
               repo,
               head: context.repo + ':' + 'feature/${{ inputs.ticketID }}'
             })
-            
+
             if (pullRequests.length > 0) {
               const { number: prNumber } = pullRequests[0]
               await github.pulls.merge({
@@ -120,16 +120,8 @@ jobs:
             }
             throw new Error('No open Pull Request found to merge.')
 
-      # Step 11: Clean Up Branch
-      - name: Delete Feature Branch
-        if: success() # Only delete if the merge is successful
-        run: |
-          git push origin --delete "feature/${{ inputs.ticketID }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Step 12: Notify Failure If Changes Aren't Approved
+      # Step 11: Notify Failure If Timeout
       - name: Notify Workflow Failure
         if: failure()
         run: |
-          echo "::error:: Workflow approval was denied. Please re-trigger with correct details."
+          echo "::error:: Workflow failed due to missing approval label within the timeout period."
