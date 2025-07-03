@@ -34,4 +34,8 @@
 <changeSet id="6.1" author="praveen" context="liquibase_test_45">
     <mongodb:createCollection collectionName="sequoia" />
 </changeSet>
+
+<changeSet id="7.1" author="praveen" context="liquibase_test_45">
+    <mongodb:createCollection collectionName="sequoia" />
+</changeSet>
 </databaseChangeLog>
