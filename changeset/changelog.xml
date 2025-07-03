@@ -22,4 +22,8 @@
 <changeSet id="3.1" author="praveen" context="liquibase_test_21">
     <mongodb:createCollection collectionName="srikanta" />
 </changeSet>
+
+<changeSet id="4.1" author="praveen" context="liquibase_test_21">
+    <mongodb:createCollection collectionName="srikanta" />
+</changeSet>
 </databaseChangeLog>
