@@ -6,9 +6,6 @@ on:
       query:
         description: "MongoDB query for Liquibase changeset generation"
         required: true
-      changeset_id:
-        description: "Liquibase changeset ID"
-        required: true
       author:
         description: "Author for the changeset"
         required: true
@@ -40,11 +37,11 @@ jobs:
       # Step 4: Run Python Script to Generate and Append Liquibase Changeset
       - name: Generate and Append Liquibase Changeset
         env:
+          # Pass the OpenAI API key or any other environment variable if needed
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/v2.py \
             --query "$(printf '%s' '${{ inputs.query }}')" \
-            --changeset-id "${{ inputs.changeset_id }}" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
