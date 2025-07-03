@@ -51,7 +51,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}    # Reference to the stored OpenAI API key
         run: |
           python scripts/v2.py \
-            --query "${{ inputs.query }}" \
+            --query 'db.createCollection("test");' \
             --changeset-id "${{ inputs.changeset_id }}" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}"
