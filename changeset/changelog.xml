@@ -30,4 +30,8 @@
 <changeSet id="5.1" author="praveen" context="liquibase_test_212">
     <mongodb:createCollection collectionName="ramu" />
 </changeSet>
+
+<changeSet id="6.1" author="praveen" context="liquibase_test_45">
+    <mongodb:createCollection collectionName="sequoia" />
+</changeSet>
 </databaseChangeLog>
