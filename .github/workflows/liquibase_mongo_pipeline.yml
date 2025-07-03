@@ -1,8 +1,8 @@
 name: Liquibase MongoDB Workflow
 
 on:
-  workflow_dispatch:    # Allows manual execution of the workflow
-    inputs:             # Define user-provided inputs for the workflow
+  workflow_dispatch:
+    inputs:
       query:
         description: "MongoDB query for Liquibase changeset generation"
         required: true
@@ -37,14 +37,8 @@ jobs:
         run: |
           pip install "openai==0.28"
 
-      # Step 4: Debug Inputs
-      - name: Debug Input Handling
-        run: |
-          echo "Raw Query Input: '${{ inputs.query }}'"
-          echo "Query Passed to Python: $(printf '%s' '${{ inputs.query }}')"
-
-      # Step 5: Run Python Script to Generate Liquibase XML
-      - name: Generate Liquibase XML
+      # Step 4: Run Python Script to Generate and Append Liquibase Changeset
+      - name: Generate and Append Liquibase Changeset
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -52,9 +46,10 @@ jobs:
             --query "$(printf '%s' '${{ inputs.query }}')" \
             --changeset-id "${{ inputs.changeset_id }}" \
             --author "${{ inputs.author }}" \
-            --context "${{ inputs.context }}"
+            --context "${{ inputs.context }}" \
+            --changelog "scripts/changeset/changelog.xml"
 
-      # Step 6: Display Generated XML Changeset
-      - name: Display Generated Liquibase XML
+      # Step 5: Display Updated changelog.xml
+      - name: Display Updated changelog.xml
         run: |
-          cat changeset/changelog.xml
+          cat scripts/changeset/changelog.xml
