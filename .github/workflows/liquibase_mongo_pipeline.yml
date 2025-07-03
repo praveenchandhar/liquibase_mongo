@@ -17,8 +17,8 @@ on:
         required: true
 
 jobs:
-  liquibase_flow:
-    name: Liquibase Flow
+  generate_changeset:
+    name: Generate Liquibase Changeset
     runs-on: ubuntu-latest
 
     steps:
@@ -32,17 +32,20 @@ jobs:
         with:
           python-version: "3.10"
 
-      # Step 3: Install required Python dependencies
+      # Step 3: Install Python Dependencies
       - name: Install Python Dependencies
-        run: pip install "openai==0.28"
+        run: |
+          pip install "openai==0.28"
 
-      # Step 4: Create and Switch to a New Feature Branch
+      # Step 4: Create and Switch to a New Branch
       - name: Create and Switch to Branch
-        run: git checkout -b "feature/${{ inputs.ticketID }}"
+        run: |
+          git checkout -b "feature/${{ inputs.ticketID }}"
 
-      # Step 5: Run Python Script to Generate Liquibase Changeset
-      - name: Generate Liquibase Changeset
+      # Step 5: Run Python Script to Generate and Append Liquibase Changeset
+      - name: Generate and Append Liquibase Changeset
         env:
+          # Pass the OpenAI API key or any other environment variable if needed
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/v2.py \
@@ -51,25 +54,25 @@ jobs:
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
-      # Step 6: Commit Changes to Feature Branch
-      - name: Commit Changes
+      # Step 6: Commit Changes to the Branch
+      - name: Commit Changes to Branch
         run: |
           git config user.name "praveen_automation"
           git config user.email "praveenchandhar194@gmail.com"
           git add changeset/changelog.xml
-          git diff --cached --quiet || git commit -m "Add changeset for MongoDB query: ${{ inputs.query }}"
+          git diff --cached --quiet || git commit -m "Add changeset for MongoDB query (${{ inputs.query }})"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 7: Push Feature Branch
+      # Step 7: Push the Feature Branch to Remote
       - name: Push Feature Branch
-        run: git push --set-upstream origin "feature/${{ inputs.ticketID }}"
+        run: |
+          git push --set-upstream origin "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 8: Create Pull Request
+      # Step 8: Create Pull Request for Merging into Main Branch
       - name: Create Pull Request
-        id: create_pr
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -82,67 +85,7 @@ jobs:
             - **Author**: ${{ inputs.author }}
             - **Context**: ${{ inputs.context }}
 
-      # Step 9: Notify PR Link
-      - name: Output PR Link
-        run: echo "Pull Request URL: ${{ steps.create_pr.outputs.pull-request-url }}"
-
-      # Step 10: Await Manual Approval or Denial
-      - name: Await Approval via PR Comment
-        uses: actions/github-script@v6
-        id: approval_check
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { owner, repo } = context.repo;
-            const branchName = "feature/${{ inputs.ticketID }}"; // Branch tied to the PR
-            
-            // Find the pull request related to the feature branch
-            const { data: pullRequests } = await github.pulls.list({
-              owner,
-              repo,
-              head: `${owner}:${branchName}`,
-              state: 'open',
-            });
-
-            if (pullRequests.length === 0) {
-              throw new Error(`No open pull request found for branch: ${branchName}`);
-            }
-
-            const prNumber = pullRequests[0].number; // Get PR number
-
-            console.log(`Pull Request #${prNumber} found. Awaiting approval...`);
-
-            // List comments on the pull request
-            const { data: comments } = await github.issues.listComments({
-              owner,
-              repo,
-              issue_number: prNumber,
-            });
-
-            // Check for 'approve' or 'deny' comment
-            const approved = comments.some(comment =>
-              comment.body.toLowerCase().includes('approve') // Look for approval
-            );
-
-            const denied = comments.some(comment =>
-              comment.body.toLowerCase().includes('deny') // Look for denial
-            );
-
-            if (approved) {
-              console.log(`Pull Request #${prNumber} has been approved.`);
-              core.setOutput("decision", "approved"); // Set decision output
-            } else if (denied) {
-              console.log(`Pull Request #${prNumber} has been denied.`);
-              core.setOutput("decision", "denied"); // Set decision output
-            } else {
-              throw new Error(`No 'approve' or 'deny' comment found on Pull Request #${prNumber}.`);
-            }
-
-      # Step 11: Conditional Execution Based on Comment
-      - name: Proceed If Approved
-        if: steps.approval_check.outputs.decision == 'approved'
-        run: echo "Proceeding with merge after approval."
-
-      - name: Abort If Denied
-        if: steps.approval_check.outputs.decision == 'denied'
-        run: echo "Process aborted due to denial."
+      # Step 9: Display Updated changelog.xml (for logging purposes)
+      - name: Display Updated changelog.xml
+        run: |
+          cat changeset/changelog.xml
