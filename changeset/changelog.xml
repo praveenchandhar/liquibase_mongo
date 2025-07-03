@@ -42,4 +42,8 @@
 <changeSet id="8.1" author="praveen" context="liquibase_test_544">
     <mongodb:createCollection collectionName="prajwal" />
 </changeSet>
+
+<changeSet id="9.1" author="praveen" context="liquibase_test">
+    <mongodb:createCollection collectionName="dhilip" />
+</changeSet>
 </databaseChangeLog>
