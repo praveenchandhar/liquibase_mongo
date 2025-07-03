@@ -149,11 +149,12 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
 
 def append_to_changelog(changeset_xml, changelog_path="changeset/changelog.xml"):
     """Append the generated <changeSet> block inside <databaseChangeLog>."""
-    # Resolve changelog path relative to the script's location
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    changelog_path = os.path.abspath(os.path.join(script_dir, changelog_path))
+    # Resolve changelog path relative to the repo root (not the scripts folder)
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # Locate this script's directory (scripts/)
+    repo_root = os.path.abspath(os.path.join(script_dir, ".."))  # Move up one level to repo root
+    changelog_path = os.path.abspath(os.path.join(repo_root, changelog_path))  # Resolve full path to changelog.xml
 
-    # Debugging: Print the resolved path
+    # Debugging: Print the resolved path (Optional for troubleshooting)
     print(f"Resolved changelog file path: {changelog_path}")
 
     # Check if the changelog file exists
@@ -164,11 +165,11 @@ def append_to_changelog(changeset_xml, changelog_path="changeset/changelog.xml")
     with open(changelog_path, "r") as f:
         content = f.read()
 
-    # Verify that the file contains a valid <databaseChangeLog> structure
+    # Check if <databaseChangeLog> exists
     if "<databaseChangeLog" not in content or "</databaseChangeLog>" not in content:
         raise ValueError("Invalid changelog structure. Missing <databaseChangeLog> tags.")
 
-    # Check if the changeset is already present (id + author match)
+    # Avoid duplicate appends
     if changeset_xml.strip() in content:
         print("⚠️ Changeset already exists in the changelog. No changes made.")
         return
@@ -176,7 +177,7 @@ def append_to_changelog(changeset_xml, changelog_path="changeset/changelog.xml")
     # Append <changeSet> before the closing </databaseChangeLog>
     updated_content = re.sub(
         r"(</databaseChangeLog>)",  # Find the closing </databaseChangeLog>
-        f"\n{changeset_xml.strip()}\n\\1",  # Insert the changeset before it
+        f"\n{changeset_xml.strip()}\n\\1",  # Insert the changeset right before </databaseChangeLog>
         content,
         flags=re.DOTALL
     )
