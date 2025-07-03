@@ -1,6 +1,37 @@
 import re
 import argparse
 import os
+import xml.etree.ElementTree as ET
+
+
+def get_next_changeset_id(changelog_path):
+    """Get the next changeset ID by parsing the changelog file."""
+    if not os.path.exists(changelog_path):
+        return "1.1"  # Start at 1.1 if the file doesn't exist
+
+    # Parse the XML to extract all changeset IDs
+    tree = ET.parse(changelog_path)
+    root = tree.getroot()
+
+    # Liquibase namespaces need to be handled
+    namespace = {"": "http://www.liquibase.org/xml/ns/dbchangelog"}
+    ET.register_namespace('', namespace[""])  # Register namespace to avoid errors
+
+    changeset_ids = []
+    for changeset in root.findall(f'.//{{{namespace[""]}}}changeSet'):
+        changeset_id = changeset.get("id")
+        if changeset_id:
+            try:
+                # Convert ID to a float to handle `1.1`, `2.1`, etc.
+                changeset_ids.append(float(changeset_id))
+            except ValueError:
+                continue  # Ignore non-numeric IDs
+
+    if changeset_ids:
+        # Increment the highest ID
+        return f"{max(changeset_ids) + 1:.1f}"  # Add 1 and keep one decimal place
+    else:
+        return "1.1"  # Start at 1.1 by default
 
 
 def correct_json_syntax(json_string):
@@ -11,14 +42,8 @@ def correct_json_syntax(json_string):
     return json_string
 
 
-def format_json_string(json_string):
-    """Format the JSON string to ensure correct structure."""
-    json_string = correct_json_syntax(json_string)
-    return json_string.strip()
-
-
 def generate_changelog(mongodb_query, changeset_id, author_name, context):
-    """Generate Liquibase changeset XML content."""
+    """Generate Liquibase changeset XML content based on MongoDB query."""
     print(f"Raw MongoDB Query Received: {mongodb_query}")
 
     mongodb_query = re.sub(r'\s+', ' ', mongodb_query).strip()
@@ -150,39 +175,27 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
 def append_to_changelog(changeset_xml, changelog_path="changeset/changelog.xml"):
     """Append the generated <changeSet> block inside <databaseChangeLog>."""
     # Resolve changelog path relative to the repo root (not the scripts folder)
-    script_dir = os.path.dirname(os.path.abspath(__file__))  # Locate this script's directory (scripts/)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(script_dir, ".."))  # Move up one level to repo root
     changelog_path = os.path.abspath(os.path.join(repo_root, changelog_path))  # Resolve full path to changelog.xml
 
-    # Debugging: Print the resolved path (Optional for troubleshooting)
     print(f"Resolved changelog file path: {changelog_path}")
 
-    # Check if the changelog file exists
     if not os.path.exists(changelog_path):
         raise FileNotFoundError(f"Changelog file '{changelog_path}' does not exist.")
 
-    # Read the current content of the changelog file
     with open(changelog_path, "r") as f:
         content = f.read()
 
-    # Check if <databaseChangeLog> exists
-    if "<databaseChangeLog" not in content or "</databaseChangeLog>" not in content:
-        raise ValueError("Invalid changelog structure. Missing <databaseChangeLog> tags.")
-
-    # Avoid duplicate appends
-    if changeset_xml.strip() in content:
-        print("⚠️ Changeset already exists in the changelog. No changes made.")
-        return
-
-    # Append <changeSet> before the closing </databaseChangeLog>
+    # Verify and append new changeSet
     updated_content = re.sub(
-        r"(</databaseChangeLog>)",  # Find the closing </databaseChangeLog>
-        f"\n{changeset_xml.strip()}\n\\1",  # Insert the changeset right before </databaseChangeLog>
+        r"(</databaseChangeLog>)",
+        f"\n{changeset_xml.strip()}\n\\1",
         content,
-        flags=re.DOTALL
+        flags=re.DOTALL,
     )
 
-    # Write the updated content back to the changelog file
+    # Write back the updated content
     with open(changelog_path, "w") as f:
         f.write(updated_content)
 
@@ -192,16 +205,21 @@ def append_to_changelog(changeset_xml, changelog_path="changeset/changelog.xml")
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate and append Liquibase XML content from MongoDB query.")
     parser.add_argument("--query", required=True, help="MongoDB query to process and convert.")
-    parser.add_argument("--changeset-id", required=True, help="Liquibase Changeset ID.")
     parser.add_argument("--author", required=True, help="Author of the changeset.")
     parser.add_argument("--context", required=True, help="Database context.")
-    parser.add_argument("--changelog", default="changelog.xml", help="Path to changelog file to append to.")
+    parser.add_argument("--changelog", default="changeset/changelog.xml", help="Path to changelog file to append to.")
     args = parser.parse_args()
 
     print("🔄 Processing MongoDB query...\n")
+
+    # Dynamically calculate the next changeset ID
+    changeset_id = get_next_changeset_id(args.changelog)
+    print(f"Next changeset ID: {changeset_id}")
+
+    # Generate the changeset using the query
     changeset_xml = generate_changelog(
         mongodb_query=args.query,
-        changeset_id=args.changeset_id,
+        changeset_id=changeset_id,
         author_name=args.author,
         context=args.context
     )
