@@ -38,4 +38,8 @@
 <changeSet id="7.1" author="praveen" context="liquibase_test_45">
     <mongodb:createCollection collectionName="sequoia" />
 </changeSet>
+
+<changeSet id="8.1" author="praveen" context="liquibase_test_544">
+    <mongodb:createCollection collectionName="prajwal" />
+</changeSet>
 </databaseChangeLog>
