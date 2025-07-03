@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 
 
 def get_next_changeset_id(changelog_path):
-    """Get the next changeset ID by parsing the changelog file."""
+    """Get the next changeset ID to follow the pattern 1.1, 1.2, 1.3."""
     if not os.path.exists(changelog_path):
         return "1.1"  # Start at 1.1 if the file doesn't exist
 
@@ -17,19 +17,21 @@ def get_next_changeset_id(changelog_path):
     namespace = {"": "http://www.liquibase.org/xml/ns/dbchangelog"}
     ET.register_namespace('', namespace[""])  # Register namespace to avoid errors
 
-    changeset_ids = []
+    changeset_minor_ids = []
     for changeset in root.findall(f'.//{{{namespace[""]}}}changeSet'):
         changeset_id = changeset.get("id")
-        if changeset_id:
+        if changeset_id and changeset_id.startswith("1."):
             try:
-                # Convert ID to a float to handle `1.1`, `2.1`, etc.
-                changeset_ids.append(float(changeset_id))
-            except ValueError:
-                continue  # Ignore non-numeric IDs
+                # Extract only the minor version (after "1.")
+                minor_id = int(changeset_id.split(".")[1])
+                changeset_minor_ids.append(minor_id)
+            except (ValueError, IndexError):
+                continue  # Ignore invalid or improperly formatted IDs
 
-    if changeset_ids:
-        # Increment the highest ID
-        return f"{max(changeset_ids) + 1:.1f}"  # Add 1 and keep one decimal place
+    if changeset_minor_ids:
+        # Increment the highest minor version
+        next_minor_id = max(changeset_minor_ids) + 1
+        return f"1.{next_minor_id}"
     else:
         return "1.1"  # Start at 1.1 by default
 
