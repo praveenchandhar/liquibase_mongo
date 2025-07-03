@@ -55,7 +55,7 @@ jobs:
             --changelog "changeset/changelog.xml"
 
       # Step 6: Commit Changes to the Branch Without Pushing
-      - name: Commit Changes to Branch
+      - name: Commit Changes to Feature Branch
         run: |
           git config user.name "praveen_automation"
           git config user.email "praveenchandhar194@gmail.com"
@@ -84,19 +84,24 @@ jobs:
             - **Query**: ${{ inputs.query }}
             - **Author**: ${{ inputs.author }}
             - **Context**: ${{ inputs.context }}
-          labels: "awaiting-approval"
 
-      # Step 9: Wait for Labels on PR
-      - name: Wait for Approval via Labels
-        uses: peter-evans/wait-for-label@v2
+  await_approval:
+    name: Await Approval Comment on PR
+    runs-on: ubuntu-latest
+    needs: generate_changeset
+
+    steps:
+      # Step 1: Monitor PR Comments for Approval
+      - name: Wait for Approval via PR Comments
+        uses: behaviorbot/validate-comments@v1.4.1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          labels: "approved"
-          timeout: 3600 # 1 hour timeout
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-body: "approve"
+          validate-only: false
 
-      # Step 10: Merge Pull Request if Approved
+      # Step 2: Merge Pull Request if Approved
       - name: Merge Pull Request
-        if: success() # Only merge if previous steps are successful
+        if: success()
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -105,7 +110,7 @@ jobs:
             const { data: pullRequests } = await github.pulls.list({
               owner,
               repo,
-              head: context.repo + ':' + 'feature/${{ inputs.ticketID }}'
+              head: context.repo + ':' + 'feature/${{ needs.generate_changeset.outputs.ticketID }}'
             })
 
             if (pullRequests.length > 0) {
@@ -116,12 +121,11 @@ jobs:
                 pull_number: prNumber
               })
               console.log(`Pull Request #${prNumber} merged successfully.`)
-              return
-            }
-            throw new Error('No open Pull Request found to merge.')
+            } else {
+              throw new Error('No open Pull Request found to merge.')
 
-      # Step 11: Notify Failure If Timeout
+      # Step 3: Notify Failure If No Approval Comment
       - name: Notify Workflow Failure
         if: failure()
         run: |
-          echo "::error:: Workflow failed due to missing approval label within the timeout period."
+          echo "::error:: Workflow approval was denied. Please re-trigger with correct details."
