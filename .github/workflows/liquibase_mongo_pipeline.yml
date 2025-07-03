@@ -22,25 +22,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout repository code
       - name: Checkout Repository Code
         uses: actions/checkout@v3
 
-      # Step 2: Set Up Python Environment
       - name: Set Up Python
         uses: actions/setup-python@v3
         with:
           python-version: "3.10"
 
-      # Step 3: Install Python Dependencies
       - name: Install Python Dependencies
         run: pip install "openai==0.28"
 
-      # Step 4: Create and Switch to a New Branch
       - name: Create and Switch to Branch
         run: git checkout -b "feature/${{ inputs.ticketID }}"
 
-      # Step 5: Run Python Script to Generate and Append Liquibase Changeset
       - name: Generate and Append Liquibase Changeset
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -51,7 +46,6 @@ jobs:
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
-      # Step 6: Commit Changes to the Branch
       - name: Commit Changes to Feature Branch
         run: |
           git config user.name "praveen_automation"
@@ -61,13 +55,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 7: Push Feature Branch
       - name: Push Feature Branch
         run: git push --set-upstream origin "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
-      # Step 8: Create Pull Request
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
@@ -87,34 +79,49 @@ jobs:
     needs: generate_changeset
 
     steps:
-      # Step 1: Check Approval via Comments
       - name: Poll for Approval via PR Comments
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { owner, repo } = context.repo
+            const { owner, repo } = context.repo; // Extract owner/repo from GitHub context
+            const branchName = 'feature/${{ inputs.ticketID }}'; // Dynamically use the input ticketID
+            
+            // API call to list open pull requests for the branch
             const { data: pullRequests } = await github.pulls.list({
               owner,
               repo,
-              head: context.repo + ':' + 'feature/${{ inputs.ticketID }}',
-              state: 'open'
-            })
+              head: `${owner}:${branchName}`, // Dynamically build "owner:branch" for the PR
+              state: 'open',
+            });
 
-            if (pullRequests.length === 0) throw new Error('No open pull request found.')
+            // Error out if no PR is found
+            if (pullRequests.length === 0) {
+              throw new Error(`No open pull request found for branch: ${branchName}`);
+            }
 
-            const prNumber = pullRequests[0].number
+            // Get the PR number
+            const prNumber = pullRequests[0].number;
+
+            // Fetch comments on the PR to check for an "approve" comment
             const { data: comments } = await github.issues.listComments({
               owner,
               repo,
-              issue_number: prNumber
-            })
+              issue_number: prNumber,
+            });
 
-            const approved = comments.some(comment => comment.body.toLowerCase().includes('approve'))
-            
-            if (!approved) throw new Error('Approval not found. Add a comment with "approve" on the pull request.')
-            
-            console.log('Pull request approved!')
+            // Check for a case-insensitive "approve" comment in the list of comments
+            const approved = comments.some(comment => comment.body.toLowerCase().includes('approve'));
+
+            // If no approval is found, throw an error
+            if (!approved) {
+              throw new Error(
+                `Approval not found on Pull Request #${prNumber}. Add a comment containing the word "approve".`
+              );
+            }
+
+            // Log success message
+            console.log(`Pull Request #${prNumber} has been approved!`);
 
   merge_pull_request:
     name: Merge Pull Request After Approval
@@ -122,7 +129,6 @@ jobs:
     needs: await_approval
 
     steps:
-      # Step 1: Merge Pull Request
       - name: Merge Pull Request
         uses: actions/github-script@v6
         with:
@@ -147,7 +153,6 @@ jobs:
 
             console.log(`Pull Request #${prNumber} has been successfully merged.`)
 
-      # Step 2: Delete Feature Branch
       - name: Delete Feature Branch
         run: git push origin --delete "feature/${{ inputs.ticketID }}"
         env:
