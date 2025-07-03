@@ -12,6 +12,9 @@ on:
       context:
         description: "Database context name"
         required: true
+      ticketID:
+        description: "Ticket ID (used for branch creation and tracking)"
+        required: true
 
 jobs:
   generate_changeset:
@@ -34,7 +37,12 @@ jobs:
         run: |
           pip install "openai==0.28"
 
-      # Step 4: Run Python Script to Generate and Append Liquibase Changeset
+      # Step 4: Create and Switch to a New Branch
+      - name: Create and Switch to Branch
+        run: |
+          git checkout -b "feature/${{ inputs.ticketID }}"
+
+      # Step 5: Run Python Script to Generate and Append Liquibase Changeset
       - name: Generate and Append Liquibase Changeset
         env:
           # Pass the OpenAI API key or any other environment variable if needed
@@ -46,18 +54,38 @@ jobs:
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
-      # Step 5: Commit and Push Changes
-      - name: Commit and Push Changes
+      # Step 6: Commit Changes to the Branch
+      - name: Commit Changes to Branch
         run: |
           git config user.name "praveen_automation"
           git config user.email "praveenchandhar194@gmail.com"
           git add changeset/changelog.xml
           git diff --cached --quiet || git commit -m "Add changeset for MongoDB query (${{ inputs.query }})"
-          git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 6: Display Updated changelog.xml
+      # Step 7: Push the Feature Branch to Remote
+      - name: Push Feature Branch
+        run: |
+          git push --set-upstream origin "feature/${{ inputs.ticketID }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 8: Create Pull Request for Merging into Main Branch
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "feature/${{ inputs.ticketID }}"
+          base: main
+          title: "Feature: Add changeset for query ${{ inputs.query }}"
+          body: |
+            This pull request adds a new Liquibase changeset for MongoDB query:
+            - **Query**: ${{ inputs.query }}
+            - **Author**: ${{ inputs.author }}
+            - **Context**: ${{ inputs.context }}
+
+      # Step 9: Display Updated changelog.xml (for logging purposes)
       - name: Display Updated changelog.xml
         run: |
           cat changeset/changelog.xml
