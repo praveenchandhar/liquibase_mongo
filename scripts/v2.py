@@ -1,5 +1,6 @@
 import re
 import argparse
+import json
 
 
 def correct_json_syntax(json_string):
@@ -22,10 +23,14 @@ def format_json_string(json_string):
     return json_string.strip()
 
 
-def generate_changelog(mongodb_query, changeset_id, author_name, context):
-    # Normalize the whitespace in the input query
-    mongodb_query = re.sub(r'\s+', ' ', mongodb_query).strip()
-    print(f"Normalized MongoDB Query: {mongodb_query}")
+def generate_changelog(query_json, changeset_id, author_name, context):
+    try:
+        mongodb_query = json.loads(query_json)
+        print(f"Parsed MongoDB Query: {mongodb_query}")
+        # Process the query information and generate XML
+    except json.JSONDecodeError:
+        print("Error: Failed to parse MongoDB query as JSON.")
+        return
 
     # Initialize xml_content
     xml_content = ""
