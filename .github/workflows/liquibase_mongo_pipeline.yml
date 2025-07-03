@@ -49,18 +49,26 @@ jobs:
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
-      # Step 5: Commit and Push Changes to the Repository
+      # Step 5: Debug Git Authentication (Optional)
+      - name: Verify Git Authentication
+        run: |
+          git remote -v
+          git branch
+          git status
+          echo "env: GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}"
+
+      # Step 6: Commit and Push Changes to the Repository
       - name: Commit and Push Changes
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
+          git config user.name "praveen_automation"
+          git config user.email "praveenchandhar194@gmail.com"
           git add changeset/changelog.xml
           git diff --cached --quiet || git commit -m "Add changeset for MongoDB query (${inputs.query})"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 6: Display Updated changelog.xml
+      # Step 7: Display Updated changelog.xml
       - name: Display Updated changelog.xml
         run: |
           cat changeset/changelog.xml
