@@ -10,4 +10,8 @@
 
 
 
+
+<changeSet id="1.1" author="praveen" context="liquibase_test">
+    <mongodb:dropCollection collectionName="common_skam" />
+</changeSet>
 </databaseChangeLog>
