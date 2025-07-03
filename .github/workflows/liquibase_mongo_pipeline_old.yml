@@ -1,4 +1,4 @@
-name: Liquibase MongoDB Workflow
+name: Liquibase MongoDB Workflow with AI
 
 on:
   workflow_dispatch:    # Allows manual execution of the workflow
