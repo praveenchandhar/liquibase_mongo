@@ -47,9 +47,20 @@ jobs:
             --changeset-id "${{ inputs.changeset_id }}" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}" \
-            --changelog "scripts/changeset/changelog.xml"
+            --changelog "changeset/changelog.xml"
 
-      # Step 5: Display Updated changelog.xml
+      # Step 5: Commit and Push Changes to the Repository
+      - name: Commit and Push Changes
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add changeset/changelog.xml
+          git diff --cached --quiet || git commit -m "Add changeset for MongoDB query (${inputs.query})"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 6: Display Updated changelog.xml
       - name: Display Updated changelog.xml
         run: |
-          cat scripts/changeset/changelog.xml
+          cat changeset/changelog.xml
