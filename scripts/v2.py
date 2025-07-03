@@ -147,7 +147,7 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
     return xml_content.strip()
 
 
-def append_to_changelog(changeset_xml, changelog_path="changelog.xml"):
+def append_to_changelog(changeset_xml, changelog_path="changeset/changelog.xml"):
     """Append the generated <changeSet> block inside <databaseChangeLog>."""
     if not os.path.exists(changelog_path):
         raise FileNotFoundError(f"Changelog file '{changelog_path}' does not exist.")
