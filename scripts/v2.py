@@ -148,11 +148,29 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
 
 
 def append_to_changelog(changeset_xml, changelog_path="changelog.xml"):
-    """Append the generated <changeSet> block to changelog.xml."""
-    os.makedirs(os.path.dirname(changelog_path), exist_ok=True)  # Create directory if not exists
-    # Open changelog.xml in append mode
-    with open(changelog_path, "a") as f:
-        f.write("\n" + changeset_xml + "\n")
+    """Append the generated <changeSet> block inside <databaseChangeLog>."""
+    if not os.path.exists(changelog_path):
+        raise FileNotFoundError(f"Changelog file '{changelog_path}' does not exist.")
+
+    with open(changelog_path, "r") as f:
+        content = f.read()
+
+    # Check if <databaseChangeLog> exists
+    if "<databaseChangeLog" not in content or "</databaseChangeLog>" not in content:
+        raise ValueError("Invalid changelog structure. Missing <databaseChangeLog> tags.")
+
+    # Append <changeSet> before </databaseChangeLog>
+    updated_content = re.sub(
+        r"(</databaseChangeLog>)",
+        f"\n{changeset_xml.strip()}\n\\1",  # Append before closing </databaseChangeLog>
+        content,
+        flags=re.DOTALL
+    )
+
+    # Write back the updated content to the changelog file
+    with open(changelog_path, "w") as f:
+        f.write(updated_content)
+
     print(f"✅ Changeset successfully appended to {changelog_path}.")
 
 
