@@ -54,7 +54,7 @@ jobs:
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
-      # Step 6: Commit Changes to the Branch
+      # Step 6: Commit Changes to the Branch Without Pushing
       - name: Commit Changes to Branch
         run: |
           git config user.name "praveen_automation"
@@ -64,14 +64,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 7: Push the Feature Branch to Remote
+      # Step 7: Wait for Approval
+      - name: Wait for Approval
+        uses: dorny/await-check@v1
+        with:
+          check-name: "Approvers Approval Required"
+          ref: ${{ github.ref }}
+          labels: |
+            Liquibase Approval Required
+
+      # Step 8: Push Feature Branch for Pull Request
       - name: Push Feature Branch
         run: |
           git push --set-upstream origin "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 8: Create Pull Request for Merging into Main Branch
+      # Step 9: Create Pull Request
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
@@ -85,7 +94,42 @@ jobs:
             - **Author**: ${{ inputs.author }}
             - **Context**: ${{ inputs.context }}
 
-      # Step 9: Display Updated changelog.xml (for logging purposes)
-      - name: Display Updated changelog.xml
+      # Step 10: Merge Pull Request if Approved
+      - name: Merge Pull Request
+        if: success() # Only merge if previous steps are successful
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo
+            const { data: pullRequests } = await github.pulls.list({
+              owner,
+              repo,
+              head: context.repo + ':' + 'feature/${{ inputs.ticketID }}'
+            })
+            
+            if (pullRequests.length > 0) {
+              const { number: prNumber } = pullRequests[0]
+              await github.pulls.merge({
+                owner,
+                repo,
+                pull_number: prNumber
+              })
+              console.log(`Pull Request #${prNumber} merged successfully.`)
+              return
+            }
+            throw new Error('No open Pull Request found to merge.')
+
+      # Step 11: Clean Up Branch
+      - name: Delete Feature Branch
+        if: success() # Only delete if the merge is successful
         run: |
-          cat changeset/changelog.xml
+          git push origin --delete "feature/${{ inputs.ticketID }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 12: Notify Failure If Changes Aren't Approved
+      - name: Notify Workflow Failure
+        if: failure()
+        run: |
+          echo "::error:: Workflow approval was denied. Please re-trigger with correct details."
