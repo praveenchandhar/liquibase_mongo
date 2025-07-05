@@ -1,4 +1,4 @@
-name: Run Liquibase Commands from PR Comments
+name: Liquibase Commands from PR Comments
 
 on:
   issue_comment:
@@ -19,33 +19,78 @@ jobs:
       - name: Checkout Repository Code
         uses: actions/checkout@v3
 
-      # Step 2: Set executable permission for Liquibase script
+      # Step 2: Restore Liquibase from Cache
+      - name: Restore Liquibase Cache
+        id: restore_cache
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/liquibase
+          key: liquibase-v4-23-0
+          restore-keys: |
+            liquibase-
+
+      # Step 3: Install Liquibase CLI (If Cache Miss)
+      - name: Install Liquibase CLI
+        if: steps.restore_cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache miss, installing Liquibase CLI..."
+          wget https://github.com/liquibase/liquibase/releases/download/v4.23.0/liquibase-4.23.0.zip
+          unzip liquibase-4.23.0.zip
+          chmod +x liquibase
+          mv liquibase /usr/local/bin/liquibase
+
+      # Step 4: Set executable permission for Liquibase script
       - name: Set Permissions for Liquibase Script
         run: chmod +x scripts/liquibase_runner.sh
 
-      # Step 3: Check and Parse Command
+      # Step 5: Parse PR Comment Command
       - name: Parse PR Comment Command
         id: parse_command
         run: |
           # Extract the command type and arguments
-          echo "Parsing PR comment for command..."
           COMMENT_BODY="${{ github.event.comment.body }}"
+          echo "Parsing PR comment for command: $COMMENT_BODY"
           if [[ "$COMMENT_BODY" == "/liquibase status" ]]; then
             echo "COMMAND=status" >> $GITHUB_ENV
+            echo "DATABASES=" >> $GITHUB_ENV  # No databases for status
           elif [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+update[[:space:]]+(.*)$ ]]; then
             echo "COMMAND=update" >> $GITHUB_ENV
             echo "DATABASES=${BASH_REMATCH[1]}" >> $GITHUB_ENV
           else
             echo "Invalid command."
             exit 1
-          fi
 
-      # Step 4: Run Liquibase Based on Command
-      - name: Run Liquibase Command
+      # Step 6: Run Liquibase Command and Capture Output
+      - name: Run Liquibase Script
+        id: liquibase_execution
         run: |
           echo "Running Liquibase..."
           if [[ "$COMMAND" == "status" ]]; then
-            ./scripts/liquibase_runner.sh status
+            ./scripts/liquibase_runner.sh status | tee liquibase_status_output.txt
           elif [[ "$COMMAND" == "update" ]]; then
-            ./scripts/liquibase_runner.sh update $DATABASES
+            ./scripts/liquibase_runner.sh update $DATABASES | tee liquibase_update_output.txt
           fi
+        shell: bash
+      # Capture the output for posting to PR
+        env:
+          COMMAND: ${{ env.COMMAND }}
+          DATABASES: ${{ env.DATABASES }}
+
+      # Step 7: Post Output Back to PR Comment
+      - name: Post Output Back to PR as Comment
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commentBody = `### Liquibase Execution Output\n\nCommand: \`${process.env.COMMAND}\`\nDatabases: \`${process.env.DATABASES}\`\n\n\`\`\`\n${require('fs').readFileSync(
+              process.env.COMMAND === 'status'
+                ? 'liquibase_status_output.txt'
+                : 'liquibase_update_output.txt',
+              'utf8',
+            )}\n\`\`\``;
+
+            await github.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: commentBody,
+            });
