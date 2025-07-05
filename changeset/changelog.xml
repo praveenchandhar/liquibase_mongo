@@ -27,4 +27,8 @@
 <changeSet id="1.4" author="praveen" context="liquibase_test">
     <mongodb:createCollection collectionName="praveen" />
 </changeSet>
+
+<changeSet id="1.5" author="praveen" context="liquibase_test">
+    <mongodb:dropCollection collectionName="common_skam" />
+</changeSet>
 </databaseChangeLog>
