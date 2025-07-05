@@ -73,6 +73,15 @@ jobs:
           wget --quiet -O $JARS_DIR/commons-lang3.jar https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar
           wget --quiet -O $JARS_DIR/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
 
+          
+          # Jackson Dependencies (Required for MongoDB extension)
+          wget --quiet -O $JARS_DIR/jackson-annotations.jar https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.14.2/jackson-annotations-2.14.2.jar
+          wget --quiet -O $JARS_DIR/jackson-core.jar https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.14.2/jackson-core-2.14.2.jar
+          wget --quiet -O $JARS_DIR/jackson-databind.jar https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.14.2/jackson-databind-2.14.2.jar
+
+          # OpenCSV Dependency (Required for CSV operations)
+          wget --quiet -O $JARS_DIR/opencsv.jar https://repo1.maven.org/maven2/com/opencsv/opencsv/5.7.1/opencsv-5.7.1.jar
+
           echo "All dependencies downloaded to $JARS_DIR."
 
       # Step 6: Cache Dependencies
