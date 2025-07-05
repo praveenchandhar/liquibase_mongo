@@ -31,59 +31,66 @@ jobs:
           mv liquibase /usr/local/bin/liquibase
           echo "Liquibase CLI installed successfully!"
 
-      # Step 3: Restore Cached JARs
+      # Step 3: Create Workspace for JARs (Avoiding Root Directories)
+      - name: Create Workspace for Liquibase JARs
+        run: |
+          echo "Creating workspace for Liquibase JARs..."
+          mkdir -p $HOME/liquibase-jars
+          echo "Workspace created at $HOME/liquibase-jars."
+
+      # Step 4: Restore Cached JARs
       - name: Restore Liquibase JARs Cache
         id: restore_jars_cache
         uses: actions/cache@v3
         with:
-          path: /usr/local/lib/liquibase-jars
+          path: $HOME/liquibase-jars
           key: liquibase-jars-v2
           restore-keys: |
             liquibase-jars-
 
-      # Step 4: Download and Setup MongoDB Driver and Liquibase MongoDB Extension (if Cache Miss)
-      - name: Setup MongoDB Driver and Liquibase MongoDB Extension
+      # Step 5: Download MongoDB Driver and Liquibase JARs (if Cache Miss)
+      - name: Setup MongoDB Driver and Liquibase MongoDB Extension (Download Missing Jars)
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         run: |
-          echo "Setting up MongoDB driver and Liquibase MongoDB extension..."
-          mkdir -p /usr/local/lib/liquibase-jars
+          echo "Downloading MongoDB driver and Liquibase JAR dependencies..."
+          LIQUIBASE_JAR_DIR=$HOME/liquibase-jars
           
           # Required MongoDB drivers
-          wget --quiet -O /usr/local/lib/liquibase-jars/mongodb-driver-core.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-core/5.4.0/mongodb-driver-core-5.4.0.jar
-          wget --quiet -O /usr/local/lib/liquibase-jars/mongodb-driver-sync.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-sync/5.4.0/mongodb-driver-sync-5.4.0.jar
-          wget --quiet -O /usr/local/lib/liquibase-jars/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.4.0/bson-5.4.0.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/mongodb-driver-core.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-core/5.4.0/mongodb-driver-core-5.4.0.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/mongodb-driver-sync.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-sync/5.4.0/mongodb-driver-sync-5.4.0.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.4.0/bson-5.4.0.jar
 
           # Liquibase core jar
-          wget --quiet -O /usr/local/lib/liquibase-jars/liquibase-core.jar https://search.maven.org/remotecontent?filepath=org/liquibase/liquibase-core/4.23.0/liquibase-core-4.23.0.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/liquibase-core.jar https://search.maven.org/remotecontent?filepath=org/liquibase/liquibase-core/4.23.0/liquibase-core-4.23.0.jar
 
           # Additional dependencies
-          wget --quiet -O /usr/local/lib/liquibase-jars/commons-io.jar https://repo1.maven.org/maven2/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar
-          wget --quiet -O /usr/local/lib/liquibase-jars/commons-lang3.jar https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar
-          wget --quiet -O /usr/local/lib/liquibase-jars/picocli.jar https://repo1.maven.org/maven2/info/picocli/picocli/4.6.3/picocli-4.6.3.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/commons-io.jar https://repo1.maven.org/maven2/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/commons-lang3.jar https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/picocli.jar https://repo1.maven.org/maven2/info/picocli/picocli/4.6.3/picocli-4.6.3.jar
 
           # SnakeYAML for YAML parsing
-          wget --quiet -O /usr/local/lib/liquibase-jars/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
 
           # Liquibase MongoDB extension
-          wget --quiet -O /usr/local/lib/liquibase-jars/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
+          wget --quiet -O $LIQUIBASE_JAR_DIR/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
 
           echo "MongoDB driver and Liquibase extension setup completed."
 
-      # Step 5: Save MongoDB Driver and Extension to Cache
-      - name: Save MongoDB Driver and Extension to Cache
+      # Step 6: Save JARs to Cache
+      - name: Save MongoDB Driver and Liquibase Extension to Cache
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         uses: actions/cache@v3
         with:
-          path: /usr/local/lib/liquibase-jars
+          path: $HOME/liquibase-jars
           key: liquibase-jars-v2
 
-      # Step 6: Set Java CLASSPATH
-      - name: Set Java CLASSPATH for MongoDB Driver and Liquibase Extensions
+      # Step 7: Configure CLASSPATH
+      - name: Configure CLASSPATH
         run: |
-          export CLASSPATH="/usr/local/lib/liquibase-jars/*"
-          echo "CLASSPATH set to include MongoDB driver and Liquibase extensions."
+          export CLASSPATH="$HOME/liquibase-jars/*"
+          echo "CLASSPATH set to include all Liquibase and MongoDB dependencies."
 
-      # Step 7: Parse PR Comment Command and Database Names
+      # Step 8: Parse PR Comment Command and Database Names
       - name: Parse PR Comment Command
         id: parse_command
         run: |
@@ -103,15 +110,15 @@ jobs:
               exit 1
           fi
 
-      # Step 8: Run Liquibase Commands
+      # Step 9: Run Liquibase Commands
       - name: Run Liquibase Command
         run: |
           echo "Running Liquibase command with $COMMAND..."
           for DB in $(echo $DATABASES | tr ',' '\n'); do
               echo "Processing database: $DB"
               if [[ "$COMMAND" == "status" ]]; then
-                  liquibase --classpath=/usr/local/lib/liquibase-jars/ --url="jdbc:mongodb://$DB" --changeLogFile=db/changelog.xml status
+                  liquibase --classpath=$HOME/liquibase-jars/ --url="jdbc:mongodb://$DB" --changeLogFile=db/changelog.xml status
               elif [[ "$COMMAND" == "update" ]]; then
-                  liquibase --classpath=/usr/local/lib/liquibase-jars/ --url="jdbc:mongodb://$DB" --changeLogFile=db/changelog.xml update
+                  liquibase --classpath=$HOME/liquibase-jars/ --url="jdbc:mongodb://$DB" --changeLogFile=db/changelog.xml update
               fi
           done
