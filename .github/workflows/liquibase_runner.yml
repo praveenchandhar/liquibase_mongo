@@ -3,7 +3,7 @@ name: Liquibase Commands from PR Comments
 on:
   issue_comment:
     types:
-      - created  # Trigger when a comment is created in a PR.
+      - created  # Trigger when a comment is made in a PR.
 
 jobs:
   liquibase_task:
@@ -21,7 +21,17 @@ jobs:
       - name: Checkout Repository Code
         uses: actions/checkout@v3
 
-      # Step 2: Restore Cached JAR Files
+      # Step 2: Install Liquibase CLI
+      - name: Install Liquibase CLI
+        run: |
+          echo "Installing Liquibase CLI..."
+          wget --quiet https://github.com/liquibase/liquibase/releases/download/v4.23.0/liquibase-4.23.0.zip
+          unzip liquibase-4.23.0.zip
+          chmod +x liquibase
+          mv liquibase /usr/local/bin/liquibase
+          echo "Liquibase CLI installed successfully!"
+
+      # Step 3: Restore Cached JARs
       - name: Restore Liquibase JARs Cache
         id: restore_jars_cache
         uses: actions/cache@v3
@@ -31,16 +41,12 @@ jobs:
           restore-keys: |
             liquibase-jars-
 
-      # Step 3: Download Required JAR Files (if Cache Miss)
+      # Step 4: Download JAR Dependencies (if Cache Miss)
       - name: Download Liquibase JAR Dependencies
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         run: |
           echo "Downloading Liquibase dependency JARs..."
-          
-          # Create directory for storing JAR files
           mkdir -p /usr/local/bin/internal/lib
-          
-          # Download files
           wget --quiet -O /usr/local/bin/internal/lib/mongodb-driver-core.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-core/5.4.0/mongodb-driver-core-5.4.0.jar
           wget --quiet -O /usr/local/bin/internal/lib/mongodb-driver-sync.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-sync/5.4.0/mongodb-driver-sync-5.4.0.jar
           wget --quiet -O /usr/local/bin/internal/lib/liquibase-core.jar https://search.maven.org/remotecontent?filepath=org/liquibase/liquibase-core/4.23.0/liquibase-core-4.23.0.jar
@@ -50,10 +56,9 @@ jobs:
           wget --quiet -O /usr/local/bin/internal/lib/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
           wget --quiet -O /usr/local/bin/internal/lib/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.4.0/bson-5.4.0.jar
           wget --quiet -O /usr/local/bin/internal/lib/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
-
           echo "Dependency JARs downloaded successfully!"
 
-      # Step 4: Cache JAR Files for Future Runs
+      # Step 5: Cache JARs for Future Runs
       - name: Save Liquibase JARs to Cache
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         uses: actions/cache@v3
@@ -61,11 +66,11 @@ jobs:
           path: /usr/local/bin/internal/lib
           key: liquibase-jars-v1
 
-      # Step 5: Set Permissions for Liquibase Script
+      # Step 6: Set Permissions for Liquibase Script
       - name: Set Permissions for Liquibase Script
         run: chmod +x scripts/liquibase_runner.sh
 
-      # Step 6: Parse PR Comment Command and Databases
+      # Step 7: Parse PR Comment Command and Database Names
       - name: Parse PR Comment Command
         id: parse_command
         run: |
@@ -85,46 +90,16 @@ jobs:
               exit 1
           fi
 
-      # Step 7: Run Liquibase Command
+      # Step 8: Run Liquibase Commands
       - name: Run Liquibase Command
         id: run_liquibase
         run: |
-          echo "Running Liquibase command for $COMMAND on databases: $DATABASES..."
-          if [[ "$COMMAND" == "status" ]]; then
-            ./scripts/liquibase_runner.sh status $DATABASES > liquibase_status_output.txt 2>&1 || cat liquibase_status_output.txt
-          elif [[ "$COMMAND" == "update" ]]; then
-            ./scripts/liquibase_runner.sh update $DATABASES > liquibase_update_output.txt 2>&1 || cat liquibase_update_output.txt
-          fi
-
-      # Step 8: Post Output Back to PR
-      - name: Post Output Back to PR
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const command = process.env.COMMAND;
-            const databases = process.env.DATABASES || 'None';
-            const fs = require('fs');
-
-            const outputFile = (command === 'status')
-              ? 'liquibase_status_output.txt'
-              : 'liquibase_update_output.txt';
-
-            let outputContent;
-            try {
-              outputContent = fs.readFileSync(outputFile, 'utf8');
-            } catch (error) {
-              outputContent = "Error: Failed to read the log file.";
-            }
-
-            const commentBody = `### Liquibase Execution Output\n\nCommand: \`${command}\`\nDatabases: \`${databases}\`\n\n\`\`\`\n${outputContent}\n\`\`\``;
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: commentBody,
-            });
-        env:
-          COMMAND: ${{ env.COMMAND }}
-          DATABASES: ${{ env.DATABASES }}
+          echo "Running Liquibase command with $COMMAND..."
+          for DB in $(echo $DATABASES | tr ',' '\n'); do
+              echo "Processing database: $DB"
+              if [[ "$COMMAND" == "status" ]]; then
+                  liquibase --url="jdbc:mongodb://$DB" --changeLogFile=db/changelog.xml status
+              elif [[ "$COMMAND" == "update" ]]; then
+                  liquibase --url="jdbc:mongodb://$DB" --changeLogFile=db/changelog.xml update
+              fi
+          done
