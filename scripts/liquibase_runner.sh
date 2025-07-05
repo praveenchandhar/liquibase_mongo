@@ -47,18 +47,16 @@ case "$command" in
     status)
         echo "Running Liquibase status for database: '$database'..."
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
-            --changeLogFile=changeset/changelog.xml \
-            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
             status \
-            --logLevel=DEBUG
+            --changeLogFile=changeset/changelog.xml \
+            --url="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-mongodb-github.lhhwdqa.mongodb.net/$database?retryWrites=true&w=majority&tls=true"
         ;;
     update)
         echo "Running Liquibase update for database: '$database'..."
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
-            --changeLogFile=changeset/changelog.xml \
-            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
             update \
-            --logLevel=DEBUG
+            --changeLogFile=changeset/changelog.xml \
+            --url="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-mongodb-github.lhhwdqa.mongodb.net/$database?retryWrites=true&w=majority&tls=true"
         ;;
     *)
         echo "Unknown command: $command"
