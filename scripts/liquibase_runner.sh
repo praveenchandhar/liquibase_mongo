@@ -22,7 +22,7 @@ case "$command" in
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
             --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
             --logLevel=debug \
-            --changeLogFile=changelog.xml \
+            --changeLogFile=changeset/changelog.xml \
             status
         ;;
     update)
@@ -30,7 +30,7 @@ case "$command" in
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
             --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
             --logLevel=debug \
-            --changeLogFile=changelog.xml \
+            --changeLogFile=changeset/changelog.xml \
             update
         ;;
     *)
