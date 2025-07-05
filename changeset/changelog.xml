@@ -9,7 +9,7 @@
     http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
 
     <changeSet id="1.1" author="praveen" context="liquibase_test">
-        <mongodb:dropCollection collectionName="common_skam" />
+        <mongodb:createCollection collectionName="common_skam" />
     </changeSet>
 
     <changeSet id="1.2" author="praveen" context="liquibase_test">
