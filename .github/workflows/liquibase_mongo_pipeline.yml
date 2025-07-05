@@ -47,7 +47,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          python scripts/v3.py \
+          python scripts/v2.py \
             --query "$(printf '%s' '${{ inputs.query }}')" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}" \
