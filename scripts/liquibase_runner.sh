@@ -1,3 +1,5 @@
+
+
 #!/bin/bash
 
 # MongoDB Atlas connection base (without database)
@@ -13,8 +15,11 @@ fi
 command="$1"
 database="$2"
 
+# Setup CLASSPATH for Liquibase dependencies
+CLASSPATH=$(find "$HOME/liquibase-jars" -name "*.jar" | tr '\n' ':')
+
 # Print classpath for debugging
-echo "Using LIQUIBASE_CLASSPATH: $LIQUIBASE_CLASSPATH"
+echo "Using classpath: $CLASSPATH"
 
 # Common Liquibase options
 LIQUIBASE_OPTS=(
@@ -23,15 +28,15 @@ LIQUIBASE_OPTS=(
   --changeLogFile=changeset/changelog.xml
 )
 
-# Execute the appropriate Liquibase command using the CLI
+# Execute the appropriate Liquibase command
 case "$command" in
   status)
     echo "Running Liquibase status for database: $database"
-    liquibase "${LIQUIBASE_OPTS[@]}" status
+    java -cp "$CLASSPATH" liquibase.integration.commandline.Main "${LIQUIBASE_OPTS[@]}" status
     ;;
   update)
     echo "Running Liquibase update for database: $database"
-    liquibase "${LIQUIBASE_OPTS[@]}" update
+    java -cp "$CLASSPATH" liquibase.integration.commandline.Main "${LIQUIBASE_OPTS[@]}" update
     ;;
   *)
     echo "Unknown command: $command"
