@@ -57,7 +57,7 @@ def generate_changelog(mongodb_query, changeset_id, author_name, context):
             collection_name = match.group(1)
             xml_content = f"""
 <changeSet id="{changeset_id}" author="{author_name}" context="{context}">
-    <createCollection collectionName="{collection_name}" />
+    <mongodb:createCollection collectionName="{collection_name}" />
 </changeSet>
 """
 
