@@ -15,6 +15,15 @@ database="$2"
 
 # Setup CLASSPATH for Liquibase dependencies
 CLASSPATH=$(find $HOME/liquibase-jars -name "*.jar" | tr '\n' ':')
+echo "CLASSPATH Debug:"
+echo "$CLASSPATH"
+
+# Test SystemProperties availability
+echo "Testing SystemProperties availability..."
+java -cp "$CLASSPATH" org.apache.commons.lang3.SystemProperties || {
+    echo "ERROR: org.apache.commons.lang3.SystemProperties is not available in CLASSPATH."
+    exit 1
+}
 
 case "$command" in
     status)
