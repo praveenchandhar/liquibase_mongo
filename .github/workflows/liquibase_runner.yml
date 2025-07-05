@@ -31,70 +31,48 @@ jobs:
           mv liquibase /usr/local/bin/liquibase
           echo "Liquibase CLI installed successfully."
 
-      # Step 3: Prepare Liquibase Dependencies Directory
-      - name: Create Directory for Liquibase JARs
+      # Step 3: Prepare Workspace for Liquibase JARs
+      - name: Create Workspace for JARs
         run: mkdir -p $HOME/liquibase-jars
 
-      # Step 4: Restore Cached JARs
-      - name: Restore Cached Dependencies
-        id: restore_jars
+      # Step 4: Restore Cached Liquibase JARs
+      - name: Restore Dependencies from Cache
+        id: restore_jars_cache
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v7
+          key: liquibase-jars-v8
           restore-keys: |
             liquibase-jars-
 
-      # Step 5: Download Missing JARs if Cache Misses
-      - name: Download Dependencies for Liquibase
-        if: steps.restore_jars.outputs.cache-hit != 'true'
+      # Step 5: Download JAR Dependencies (If Not Cached)
+      - name: Download Liquibase Dependencies
+        if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         run: |
-          JARS_DIR=$HOME/liquibase-jars
-          echo "Downloading dependencies to $JARS_DIR..."
+          echo "Downloading JARs..."
+          wget -P $HOME/liquibase-jars <dependencies like mongodb-driver-core.jar>
+          echo "Downloaded to $HOME/liquibase-jars."
 
-          # MongoDB JARs
-          wget --quiet -O $JARS_DIR/mongodb-driver-core.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-core/5.4.0/mongodb-driver-core-5.4.0.jar
-          wget --quiet -O $JARS_DIR/mongodb-driver-sync.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-sync/5.4.0/mongodb-driver-sync-5.4.0.jar
-          wget --quiet -O $JARS_DIR/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.4.0/bson-5.4.0.jar
-
-          # Liquibase Core Libraries
-          wget --quiet -O $JARS_DIR/liquibase-core.jar https://search.maven.org/remotecontent?filepath=org/liquibase/liquibase-core/4.23.0/liquibase-core-4.23.0.jar
-
-          # Other Dependencies
-          wget --quiet -O $JARS_DIR/commons-io.jar https://repo1.maven.org/maven2/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar
-          wget --quiet -O $JARS_DIR/commons-lang3.jar https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar
-          wget --quiet -O $JARS_DIR/picocli.jar https://repo1.maven.org/maven2/info/picocli/picocli/4.6.3/picocli-4.6.3.jar
-          wget --quiet -O $JARS_DIR/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
-          wget --quiet -O $JARS_DIR/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
-
-          echo "Dependencies downloaded successfully."
-
-      # Step 6: Cache the JARs
-      - name: Cache the JAR Files
-        if: steps.restore_jars.outputs.cache-hit != 'true'
+      # Step 6: Save Dependencies to Cache
+      - name: Save JARs to Cache
+        if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v7
+          key: liquibase-jars-v8
 
       # Step 7: Parse PR Comment
-      - name: Parse PR Comment Command
+      - name: Parse PR Comments
         run: |
-          COMMENT_BODY="${{ github.event.comment.body }}"
-          echo "Parsing PR comment: $COMMENT_BODY"
-
-          if [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+status[[:space:]]+(.*)$ ]]; then
-              echo "COMMAND=status" >> $GITHUB_ENV
-          elif [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+update[[:space:]]+(.*)$ ]]; then
-              echo "COMMAND=update" >> $GITHUB_ENV
+          if [[ "${{ github.event.comment.body }}" =~ ^/liquibase[[:space:]]+(.*)$ ]]; then
+              echo "COMMAND=${BASH_REMATCH[1]}" >> $GITHUB_ENV
           else
               echo "Invalid command."
               exit 1
           fi
 
-      # Step 8: Execute Liquibase Using liquibase_runner.sh
-      - name: Run `liquibase_runner.sh`
+      # Step 8: Run `liquibase_runner.sh`
+      - name: Execute Runner Script
         run: |
-          echo "Executing Liquibase command via liquibase_runner.sh..."
           chmod +x scripts/liquibase_runner.sh
-          ./scripts/liquibase_runner.sh $COMMAND
+          ./scripts/liquibase_runner.sh "${COMMAND}"
