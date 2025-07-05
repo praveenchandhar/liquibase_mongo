@@ -1,51 +1,40 @@
 #!/bin/bash
 
-# Define an associative array of databases and their corresponding contexts
-declare -A databases
-databases=(
-    ["pp_data_common_pre-production"]="pp_data_common_pre-production"
-    ["pp_data_common_preproduction"]="pp_data_common_preproduction"
-    ["pp_data_common_production"]="pp_data_common_production"
-    ["benefitos_tenant_1_db_preproduction"]="benefitos_tenant_1_db_preproduction"
-    ["tenant_1_db_production"]="tenant_1_db_production"
-    ["liquibase_test"]="liquibase_test"
-)
+# MongoDB Atlas connection base (without database)
+MONGO_CONNECTION_BASE="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-mongodb-github.lhhwdqa.mongodb.net"
 
-# Check that a command is provided
-if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <command>"
+# Check if command and database are provided
+if [ "$#" -lt 2 ]; then
+    echo "Usage: $0 <command> <database>"
     exit 1
 fi
 
-# Setup CLASSPATH dynamically
-CLASSPATH=$(find $HOME/liquibase-jars -name "*.jar" | tr '\n' ':')
+# Read command and database
+command="$1"
+database="$2"
 
-command=$1  # Read command (`status` or `update`)
+# Setup CLASSPATH for Liquibase dependencies
+CLASSPATH=$(find $HOME/liquibase-jars -name "*.jar" | tr '\n' ':')
 
 case "$command" in
     status)
-        echo "Running Liquibase status..."
+        echo "Running Liquibase status for database: $database"
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
+            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority" \
             --logLevel=debug \
             --changeLogFile=changelog.xml \
             status
         ;;
     update)
-        echo "Running Liquibase update..."
-        for db in "${!databases[@]}"; do
-            echo "Updating database: $db..."
-            java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
-                --url="jdbc:mongodb://praveen-mongodb-github.lhhwdqa.mongodb.net$db?authSource=admin" \
-                --username="praveenchandharts" \
-                --password="kixIUsDWGd3n6w5S" \
-                --changeLogFile=changelog.xml \
-                --contexts="${databases[$db]}" \
-                --logLevel=debug \
-                update
-        done
+        echo "Running Liquibase update for database: $database"
+        java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
+            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority" \
+            --logLevel=debug \
+            --changeLogFile=changelog.xml \
+            update
         ;;
     *)
-        echo "Unknown command: $command. Supported commands are 'status' and 'update'."
+        echo "Unknown command: $command"
         exit 1
         ;;
 esac
