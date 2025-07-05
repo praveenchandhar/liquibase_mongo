@@ -99,7 +99,13 @@ jobs:
               exit 1
           fi
 
-      # Step 8: Execute Liquibase Runner Script
+       # Step 8: Parse PR Command and Database
+      - name: List Files for Debugging
+        run: |
+           echo "Checking liquibase-jars directory..."
+           ls -l $HOME/liquibase-jars/
+ 
+      # Step 9: Execute Liquibase Runner Script
       - name: Execute Liquibase Runner Script
         run: |
           echo "Running Liquibase runner script..."
