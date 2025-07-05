@@ -13,33 +13,34 @@ fi
 command="$1"
 database="$2"
 
-# Prepare Workspace and Install Dependencies
+# Prepare Workspace and Dependencies
 JARS_DIR=$HOME/liquibase-jars
-
-# Setup Liquibase CLASSPATH
-# Prioritize commons-lang3 and other essential jars first
-CLASSPATH="$JARS_DIR/commons-lang3.jar:$JARS_DIR/liquibase-core.jar:$JARS_DIR/liquibase-mongodb.jar:$JARS_DIR/jackson-annotations.jar:$JARS_DIR/jackson-core.jar:$JARS_DIR/jackson-databind.jar:$JARS_DIR/mongodb-driver-sync.jar:$JARS_DIR/mongodb-driver-core.jar:$JARS_DIR/bson.jar:$JARS_DIR/commons-io.jar:$JARS_DIR/snakeyaml.jar:$JARS_DIR/slf4j-api.jar:$JARS_DIR/slf4j-simple.jar:$JARS_DIR/opencsv.jar"
+CLASSPATH="$JARS_DIR/commons-lang3.jar:$JARS_DIR/liquibase-core.jar:$JARS_DIR/liquibase-mongodb.jar:$JARS_DIR/jackson-annotations.jar:$JARS_DIR/jackson-core.jar:$JARS_DIR/jackson-databind.jar:$JARS_DIR/snakeyaml.jar:$JARS_DIR/mongodb-driver-sync.jar:$JARS_DIR/mongodb-driver-core.jar:$JARS_DIR/bson.jar:$JARS_DIR/slf4j-api.jar:$JARS_DIR/slf4j-simple.jar:$JARS_DIR/commons-io.jar:$JARS_DIR/opencsv.jar"
 
 export CLASSPATH
 
-echo "--------------- DEBUGGING START ---------------"
-echo "CLASSPATH=${CLASSPATH}" | tr ':' '\n'
-echo "Files in JARS_DIR ($JARS_DIR):"
-ls -l "$JARS_DIR"
-echo "--------------- DEBUGGING END -----------------"
+echo "--------------- DEBUGGING START ----------------"
+echo "COMMAND: $command"
+echo "DATABASE: $database"
+echo "CLASSPATH:"
+echo $CLASSPATH | tr ':' '\n'
+echo "Files in JARS_DIR:"
+ls -l $JARS_DIR
+echo "Connection URL: $MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true"
+echo "--------------- DEBUGGING END ------------------"
 
-# Check if commons-lang3 is included in dependencies
-if ! jar tf "$JARS_DIR/commons-lang3.jar" | grep -q "org/apache/commons/lang3/SystemProperties.class"; then
-    echo "Error: commons-lang3.jar does not contain SystemProperties class."
-    exit 1
-fi
-
-# Validate that Liquibase is accessible
-echo "Validating Liquibase binary..."
+# Validate Liquibase Binary
+echo "Validating Liquibase binary execution..."
 java -cp "$CLASSPATH" liquibase.integration.commandline.Main --version || {
-    echo "Liquibase execution failed: please check dependencies."
+    echo "Liquibase failed to execute. Please check dependencies and binary."
     exit 1
 }
+
+# Ensure changelog file exists
+if [ ! -f changeset/changelog.xml ]; then
+    echo "Error: changelog file does not exist at changeset/changelog.xml"
+    exit 1
+fi
 
 # Command Execution
 case "$command" in
@@ -48,19 +49,17 @@ case "$command" in
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
             status \
             --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
-            --logLevel=debug \
-            --changeLogFile=changeset/changelog.xml
+            --changeLogFile=changeset/changelog.xml \
+            --logLevel=DEBUG
         ;;
-
     update)
         echo "Running Liquibase update for database: '$database'..."
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
             update \
             --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
-            --logLevel=debug \
-            --changeLogFile=changeset/changelog.xml
+            --changeLogFile=changeset/changelog.xml \
+            --logLevel=DEBUG
         ;;
-
     *)
         echo "Unknown command: $command"
         exit 1
