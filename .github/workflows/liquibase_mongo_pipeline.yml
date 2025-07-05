@@ -55,7 +55,7 @@ jobs:
         run: |
           echo "Running Python script to update changelog.xml..."
           python scripts/v2.py \
-            --query "${{ inputs.query }}" \
+            --query "$(printf '%s' '${{ inputs.query }}')" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
