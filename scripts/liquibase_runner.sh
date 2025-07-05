@@ -35,7 +35,7 @@ case "$command" in
         for db in "${!databases[@]}"; do
             echo "Updating database: $db..."
             java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
-                --url="jdbc:mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-mongodb-github.lhhwdqa.mongodb.net/$db?retryWrites=true&w=majority" \
+                --url="jdbc:mongodb://praveen-mongodb-github.lhhwdqa.mongodb.net$db?authSource=admin" \
                 --username="praveenchandharts" \
                 --password="kixIUsDWGd3n6w5S" \
                 --changeLogFile=changelog.xml \
