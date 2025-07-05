@@ -40,15 +40,17 @@ jobs:
       # Step 4: Create and Switch to a New Branch
       - name: Create and Switch to Branch
         run: |
+          echo "Creating branch: feature/${{ inputs.ticketID }}"
           git checkout -b "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 5: Run Python Script and Generate Changes
+      # Step 5: Run Python Script to Generate Changeset
       - name: Generate and Append Liquibase Changeset
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+          echo "Running Python script to append changelog..."
           python scripts/v2.py \
             --query "$(printf '%s' '${{ inputs.query }}')" \
             --author "${{ inputs.author }}" \
@@ -56,18 +58,22 @@ jobs:
             --changelog "changeset/changelog.xml"
 
       # Step 6: Verify Local Workspace (Debugging Step)
-      - name: Verify Changes Before Commit
+      - name: Verify Changes Locally
         run: |
+          echo "Listing files in 'changeset/'"
           ls -l changeset/
+          echo "Displaying updated changelog.xml"
           cat changeset/changelog.xml
-      
+
       # Step 7: Commit Changes to Feature Branch
       - name: Commit Changes
         run: |
+          echo "Committing changes to the new branch..."
           git config user.name "praveen_automation"
           git config user.email "praveenchandhar194@gmail.com"
           git add changeset/changelog.xml
           git status
+          git diff --cached || echo "No meaningful changes to commit"
           git diff --cached --quiet || git commit -m "Add changeset for MongoDB query (${{ inputs.query }})"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,12 +81,12 @@ jobs:
       # Step 8: Push Feature Branch to Remote
       - name: Push Feature Branch
         run: |
-          echo "Pushing branch feature/${{ inputs.ticketID }}..."
-          git push --set-upstream origin "feature/${{ inputs.ticketID }}"
+          echo "Pushing branch feature/${{ inputs.ticketID }} to remote..."
+          git push --set-upstream origin "feature/${{ inputs.ticketID}}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 9: Create Pull Request for the Main Branch
+      # Step 9: Create Pull Request for Merging into Main Branch
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
