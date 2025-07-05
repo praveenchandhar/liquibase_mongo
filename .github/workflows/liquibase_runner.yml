@@ -3,14 +3,14 @@ name: Liquibase Commands from PR Comments
 on:
   issue_comment:
     types:
-      - created  # Trigger when a comment is created in the PR
+      - created  # Trigger on PR comment creation.
 
 jobs:
   liquibase_task:
     if: |
       github.event.issue.pull_request &&
       (
-        contains(github.event.comment.body, '/liquibase status') ||
+        startsWith(github.event.comment.body, '/liquibase status') ||
         startsWith(github.event.comment.body, '/liquibase update')
       )
     name: Run Liquibase Tasks
@@ -35,7 +35,7 @@ jobs:
       - name: Install Liquibase CLI
         if: steps.restore_cache.outputs.cache-hit != 'true'
         run: |
-          echo "Cache miss, installing Liquibase CLI..."
+          echo "Installing Liquibase CLI..."
           wget https://github.com/liquibase/liquibase/releases/download/v4.23.0/liquibase-4.23.0.zip
           unzip liquibase-4.23.0.zip
           chmod +x liquibase
@@ -45,34 +45,36 @@ jobs:
       - name: Set Permissions for Liquibase Script
         run: chmod +x scripts/liquibase_runner.sh
 
-      # Step 5: Parse PR Comment for Liquibase Command
+      # Step 5: Parse PR Comment Command and Database Names
       - name: Parse PR Comment Command
         id: parse_command
         run: |
-          # Extract the command type and arguments
+          # Extract command type and database names
           COMMENT_BODY="${{ github.event.comment.body }}"
           echo "Parsing PR comment: $COMMENT_BODY"
+
           # Check for '/liquibase status' command
-          if [[ "$COMMENT_BODY" == "/liquibase status" ]]; then
+          if [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+status[[:space:]]+(.*)$ ]]; then
               echo "COMMAND=status" >> $GITHUB_ENV
-              echo "DATABASES=" >> $GITHUB_ENV  # No databases for status
-          # Check for '/liquibase update' command with databases
+              DATABASES=$(echo "$COMMENT_BODY" | sed -E 's/^\/liquibase[[:space:]]+status[[:space:]]+//')
+              echo "DATABASES=$DATABASES" >> $GITHUB_ENV
+          # Check for '/liquibase update' command
           elif [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+update[[:space:]]+(.*)$ ]]; then
               echo "COMMAND=update" >> $GITHUB_ENV
-              DATABASES=$(echo "$COMMENT_BODY" | sed -E 's/^\/liquibase[[:space:]]+update[[:space:]]+//')  # Extract database names
+              DATABASES=$(echo "$COMMENT_BODY" | sed -E 's/^\/liquibase[[:space:]]+update[[:space:]]+//')
               echo "DATABASES=$DATABASES" >> $GITHUB_ENV
           else
               echo "Invalid command."
               exit 1
           fi
 
-      # Step 6: Run Liquibase Script Based on Command
+      # Step 6: Run Liquibase Script Based on Command and Databases
       - name: Run Liquibase Command
-        id: liquibase_execution
+        id: run_liquibase
         run: |
-          echo "Running Liquibase..."
+          echo "Running Liquibase command..."
           if [[ "$COMMAND" == "status" ]]; then
-            ./scripts/liquibase_runner.sh status | tee liquibase_status_output.txt
+            ./scripts/liquibase_runner.sh status $DATABASES | tee liquibase_status_output.txt
           elif [[ "$COMMAND" == "update" ]]; then
             ./scripts/liquibase_runner.sh update $DATABASES | tee liquibase_update_output.txt
           fi
@@ -80,22 +82,28 @@ jobs:
           COMMAND: ${{ env.COMMAND }}
           DATABASES: ${{ env.DATABASES }}
 
-      # Step 7: Post Liquibase Output Back as PR Comment
-      - name: Post Output Back To PR
+      # Step 7: Post Output Back to PR Comment
+      - name: Post Output Back to PR
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const command = process.env.COMMAND;
             const databases = process.env.DATABASES || 'None';
-            const outputFile = command === 'status'
+            let outputFile = (command === 'status')
               ? 'liquibase_status_output.txt'
               : 'liquibase_update_output.txt';
-            const outputContent = require('fs').readFileSync(outputFile, 'utf8');
-
+              
+            const fs = require('fs');
+            const outputContent = fs.readFileSync(outputFile, 'utf8');
+            
             const commentBody = `### Liquibase Execution Output\n\nCommand: \`${command}\`\nDatabases: \`${databases}\`\n\n\`\`\`\n${outputContent}\n\`\`\``;
-            await github.issues.createComment({
-              ...context.repo,
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
               issue_number: context.issue.number,
               body: commentBody,
             });
+        env:
+          COMMAND: ${{ env.COMMAND }}
+          DATABASES: ${{ env.DATABASES }}
