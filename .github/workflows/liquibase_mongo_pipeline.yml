@@ -48,13 +48,13 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/v2.py \
-            --query "$(printf '%s' '${{ inputs.query }}')" \
+            --query "${{ inputs.query }}" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
       # Step 6: Debug: Verify changelog.xml Content
-      - name: Debug: Verify changelog.xml Content
+      - name: Debug:Verify changelog.xml Content
         run: |
           cat changeset/changelog.xml
 
