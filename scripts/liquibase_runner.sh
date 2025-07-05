@@ -11,15 +11,16 @@ databases=(
     ["liquibase_test"]="liquibase_test"
 )
 
-# Check if a command is provided
+# Check that a command is provided
 if [ "$#" -lt 1 ]; then
     echo "Usage: $0 <command>"
     exit 1
 fi
 
-# Read the command (`status` or `update`)
-command=$1
-shift  # Shift to process database arguments
+# Setup CLASSPATH dynamically
+CLASSPATH=$(find $HOME/liquibase-jars -name "*.jar" | tr '\n' ':')
+
+command=$1  # Read command (`status` or `update`)
 
 case "$command" in
     status)
@@ -29,25 +30,22 @@ case "$command" in
             --changeLogFile=changelog.xml \
             status
         ;;
-    
     update)
         echo "Running Liquibase update..."
-        for db in "$@"; do
-            if [ -n "${databases[$db]}" ]; then
-                echo "Updating database: $db"
-                java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
-                    --url="jdbc:mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@your-cluster.mongodb.net/$db?retryWrites=true&w=majority" \
-                    --changeLogFile=changelog.xml \
-                    --logLevel=debug \
-                    update
-            else
-                echo "Database $db not found."
-            fi
+        for db in "${!databases[@]}"; do
+            echo "Updating database: $db..."
+            java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
+                --url="jdbc:mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-mongodb-github.lhhwdqa.mongodb.net/$db?retryWrites=true&w=majority" \
+                --username="praveenchandharts" \
+                --password="kixIUsDWGd3n6w5S" \
+                --changeLogFile=changelog.xml \
+                --contexts="${databases[$db]}" \
+                --logLevel=debug \
+                update
         done
         ;;
-    
     *)
-        echo "Unknown command: $command"
+        echo "Unknown command: $command. Supported commands are 'status' and 'update'."
         exit 1
         ;;
 esac
