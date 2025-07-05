@@ -29,36 +29,36 @@ jobs:
           unzip liquibase-4.31.1.zip
           chmod +x liquibase
           mv liquibase /usr/local/bin/liquibase
-          echo "Liquibase CLI (4.31.1) has been installed successfully!"
+          echo "Liquibase CLI (4.31.1) has been installed successfully."
 
-      # Step 3: Create Directory for JAR Dependencies
-      - name: Create Workspace for JAR Dependencies
+      # Step 3: Create Directory for Dependencies
+      - name: Create Workspace for Dependencies
         run: mkdir -p $HOME/liquibase-jars
 
-      # Step 4: Restore Cached JAR Dependencies
+      # Step 4: Restore Cached Dependencies
       - name: Restore Dependencies from Cache
         id: restore_jars_cache
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v10
+          key: liquibase-jars-v11
           restore-keys: |
             liquibase-jars-
 
-      # Step 5: Download Dependencies (If Not Cached)
-      - name: Download Compatible JAR Dependencies
+      # Step 5: Download Dependencies (Only if Cache Misses)
+      - name: Download Liquibase Dependencies
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         run: |
           echo "Downloading dependencies for Liquibase 4.31..."
           JARS_DIR=$HOME/liquibase-jars
 
-          # MongoDB Related JARs
+          # MongoDB JARs
           wget --quiet -O $JARS_DIR/mongodb-driver-core.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-core/5.4.0/mongodb-driver-core-5.4.0.jar
           wget --quiet -O $JARS_DIR/mongodb-driver-sync.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-sync/5.4.0/mongodb-driver-sync-5.4.0.jar
           wget --quiet -O $JARS_DIR/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.4.0/bson-5.4.0.jar
 
           # Liquibase Core
-          wget --quiet -O $JARS_DIR/liquibase-core.jar https://search.maven.org/remotecontent?filepath=org/liquibase/liquibase-core/4.31.1/liquibase-core-4.31.1.jar
+          wget --quiet -O $JARS_DIR/liquibase-core.jar https://repo1.maven.org/maven2/org/liquibase/liquibase-core/4.31.1/liquibase-core-4.31.1.jar
 
           # Liquibase MongoDB Extension
           wget --quiet -O $JARS_DIR/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
@@ -71,16 +71,16 @@ jobs:
 
           echo "Dependencies downloaded to $JARS_DIR."
 
-      # Step 6: Cache Dependencies
-      - name: Cache Dependencies for Reuse
+      # Step 6: Cache Dependencies for Faster Reuse
+      - name: Cache JAR Files
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v10
+          key: liquibase-jars-v11
 
-      # Step 7: Parse PR Comment for Liquibase Command
-      - name: Parse PR Comment Command
+      # Step 7: Parse PR Comment
+      - name: Parse PR Comment
         run: |
           COMMENT_BODY="${{ github.event.comment.body }}"
           echo "Parsing PR comment: $COMMENT_BODY"
@@ -96,9 +96,7 @@ jobs:
 
       # Step 8: Run `liquibase_runner.sh`
       - name: Execute Liquibase Runner Script
-        env:
-          CLASSPATH: $HOME/liquibase-jars/*
         run: |
-          echo "Running Liquibase runner script..."
+          echo "Running the Liquibase runner script..."
           chmod +x scripts/liquibase_runner.sh
           ./scripts/liquibase_runner.sh "${COMMAND}"
