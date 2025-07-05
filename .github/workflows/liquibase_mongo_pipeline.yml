@@ -1,4 +1,4 @@
-name: Liquibase MongoDB Workflow Debug
+name: Liquibase MongoDB Workflow
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
         description: "Database context name"
         required: true
       ticketID:
-        description: "Ticket ID (used for branch creation and tracking)"
+        description: "Ticket ID for branch creation and tracking"
         required: true
 
 jobs:
@@ -25,6 +25,8 @@ jobs:
       # Step 1: Checkout repository code
       - name: Checkout Repository Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure full branch history
 
       # Step 2: Set Up Python Environment
       - name: Set Up Python
@@ -35,67 +37,63 @@ jobs:
       # Step 3: Install Python Dependencies
       - name: Install Python Dependencies
         run: |
+          echo "Installing dependencies..."
           pip install "openai==0.28"
 
-      # Step 4: Create and Switch to a New Branch
-      - name: Create and Switch to Branch
+      # Step 4: Create New Feature Branch
+      - name: Create New Branch for Feature
         run: |
           echo "Creating branch: feature/${{ inputs.ticketID }}"
           git checkout -b "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 5: Run Python Script to Generate Changeset
-      - name: Generate and Append Liquibase Changeset
+      # Step 5: Run Python Script for Changeset Appending
+      - name: Run Python Script
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          echo "Running Python script to append changelog..."
+          echo "Running Python script to update changelog.xml..."
           python scripts/v2.py \
-            --query "$(printf '%s' '${{ inputs.query }}')" \
+            --query "${{ inputs.query }}" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
 
-      # Step 6: Verify Local Workspace (Debugging Step)
-      - name: Verify Changes Locally
+      # Step 6: Debug Local Workspace (Verify Changes)
+      - name: Debug Updated Directory Locally
         run: |
-          echo "Listing files in 'changeset/'"
+          echo "Listing 'changeset/' directory files..."
           ls -l changeset/
-          echo "Displaying updated changelog.xml"
+          echo "Displaying updated changelog.xml locally:"
           cat changeset/changelog.xml
 
-      # Step 7: Commit Changes to Feature Branch
+      # Step 7: Add and Commit Changes to Feature Branch
       - name: Commit Changes
         run: |
-          echo "Committing changes to the new branch..."
+          echo "Committing updated changelog.xml to feature/${{ inputs.ticketID }}..."
           git config user.name "praveen_automation"
           git config user.email "praveenchandhar194@gmail.com"
           git add changeset/changelog.xml
           git status
-          git diff --cached || echo "No meaningful changes to commit"
-          git diff --cached --quiet || git commit -m "Add changeset for MongoDB query (${{ inputs.query }})"
+          git diff --cached || echo "No changes staged for commit."
+          git diff --cached --quiet || git commit -m "Updated changelog.xml for MongoDB query: ${{ inputs.query }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 8: Push Feature Branch to Remote
-      - name: Push Feature Branch
+      # Step 8: Push Feature Branch to Remote Repository
+      - name: Push Feature Branch to Remote
         run: |
-          echo "Pushing branch feature/${{ inputs.ticketID }} to remote..."
-          git push --set-upstream origin "feature/${{ inputs.ticketID}}"
+          echo "Pushing branch feature/${{ inputs.ticketID }} to remote repository..."
+          git push --set-upstream origin "feature/${{ inputs.ticketID }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 9: Create Pull Request for Merging into Main Branch
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: "feature/${{ inputs.ticketID }}"
-          base: main
-          title: "Feature: Add changeset for query ${{ inputs.query }}"
-          body: |
-            This pull request adds a new Liquibase changeset for MongoDB query:
-            - **Query**: ${{ inputs.query }}
-            - **Author**: ${{ inputs.author }}
-            - **Context**: ${{ inputs.context }}
+      # Step 9: Verify Changes Locally in Feature Branch (Debugging Step)
+      - name: Verify Changes in Remote Feature Branch
+        run: |
+          echo "Switching to and verifying feature/${{ inputs.ticketID }}..."
+          git fetch origin "feature/${{ inputs.ticketID }}"
+          git checkout "feature/${{ inputs.ticketID }}" --force
+          echo "Displaying changelog.xml in feature/${{ inputs.ticketID }} branch:"
+          cat changeset/changelog.xml
