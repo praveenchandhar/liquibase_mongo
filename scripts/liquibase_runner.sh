@@ -8,37 +8,51 @@ databases=(
     ["pp_data_common_production"]="pp_data_common_production"
     ["benefitos_tenant_1_db_preproduction"]="benefitos_tenant_1_db_preproduction"
     ["tenant_1_db_production"]="tenant_1_db_production"
+    ["liquibase_test"]="liquibase_test"
 )
 
-# Check if no commands are provided
+# Liquibase MongoDB connection details (replace with environment variables for security)
+MONGO_CONNECTION_STRING="mongodb+srv://praveen-mongodb-github.lhhwdqa.mongodb.net"
+MONGO_USERNAME="praveenchandharts"
+MONGO_PASSWORD="kixIUsDWGd3n6w5S"
+
+# Check if a command is provided
 if [ "$#" -lt 1 ]; then
     echo "Usage: $0 <command> [<database1> <database2> ...]"
     exit 1
 fi
 
-# Read the first argument as the command (`status` or `update`)
+# Read the command (`status` or `update`)
 command=$1
 shift  # Shift to process subsequent arguments (databases)
+
+# Common CLASSPATH setup for Liquibase dependencies
+CLASSPATH="$HOME/liquibase-jars/*"
 
 case $command in
     "status")
         echo "Running Liquibase status check..."
         liquibase \
+            --classpath=$CLASSPATH \
+            --url="jdbc:$MONGO_CONNECTION_STRING/" \
+            --username=$MONGO_USERNAME \
+            --password=$MONGO_PASSWORD \
             --logLevel=debug \
             --changeLogFile=changelog.xml \
             status
         echo "Liquibase status check complete."
         ;;
+    
     "update")
-        # Loop through each provided database and apply Liquibase updates
         for db in "$@"
         do
             if [ -n "${databases[$db]}" ]; then
                 echo "Updating Liquibase for database: $db"
                 liquibase \
-                    --url="mongodb+srv://praveen-mongodb-github.lhhwdqa.mongodb.net/$db?retryWrites=true&w=majority" \
-                    --username=praveenchandharts \
-                    --password=kixIUsDWGd3n6w5S \
+                    --classpath=$CLASSPATH \
+                    --url="jdbc:$MONGO_CONNECTION_STRING/$db?retryWrites=true&w=majority" \
+                    --username=$MONGO_USERNAME \
+                    --password=$MONGO_PASSWORD \
                     --changeLogFile=changelog.xml \
                     --contexts="${databases[$db]}" \
                     --logLevel=debug \
@@ -49,6 +63,7 @@ case $command in
             fi
         done
         ;;
+    
     *)
         echo "Unknown command: $command. Supported commands are 'status' and 'update'."
         exit 1
