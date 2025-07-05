@@ -1,3 +1,4 @@
+
 name: Liquibase MongoDB Workflow
 
 on:
@@ -41,6 +42,8 @@ jobs:
       - name: Create and Switch to Branch
         run: |
           git checkout -b "feature/${{ inputs.ticketID }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Step 5: Run Python Script to Generate and Append Liquibase Changeset
       - name: Generate and Append Liquibase Changeset
@@ -58,8 +61,8 @@ jobs:
         run: |
           cat changeset/changelog.xml
 
-      # Step 7: Commit Changes to the Branch
-      - name: Commit Changes to Branch
+      # Step 7: Commit Changes to the New Branch
+      - name: Commit Changes to the Feature Branch
         run: |
           git config user.name "praveen_automation"
           git config user.email "praveenchandhar194@gmail.com"
@@ -88,3 +91,4 @@ jobs:
             - **Query**: ${{ inputs.query }}
             - **Author**: ${{ inputs.author }}
             - **Context**: ${{ inputs.context }}
+            Please manually review and approve this pull request to merge into the **main** branch.
