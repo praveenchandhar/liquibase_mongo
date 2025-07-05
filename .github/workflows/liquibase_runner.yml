@@ -82,6 +82,10 @@ jobs:
           # OpenCSV Dependency (Required for CSV operations)
           wget --quiet -O $JARS_DIR/opencsv.jar https://repo1.maven.org/maven2/com/opencsv/opencsv/5.7.1/opencsv-5.7.1.jar
 
+          # SLF4J for logging
+          wget --quiet -O $JARS_DIR/slf4j-api.jar https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.36/slf4j-api-1.7.36.jar
+          wget --quiet -O $JARS_DIR/slf4j-simple.jar https://repo1.maven.org/maven2/org/slf4j/slf4j-simple/1.7.36/slf4j-simple-1.7.36.jar
+
           echo "All dependencies downloaded to $JARS_DIR."
 
       # Step 6: Cache Dependencies
