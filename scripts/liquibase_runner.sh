@@ -47,17 +47,17 @@ case "$command" in
     status)
         echo "Running Liquibase status for database: '$database'..."
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
-            status \
-            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
             --changeLogFile=changeset/changelog.xml \
+            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
+            status \
             --logLevel=DEBUG
         ;;
     update)
         echo "Running Liquibase update for database: '$database'..."
         java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
-            update \
-            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
             --changeLogFile=changeset/changelog.xml \
+            --url="$MONGO_CONNECTION_BASE/$database?retryWrites=true&w=majority&tls=true" \
+            update \
             --logLevel=DEBUG
         ;;
     *)
