@@ -21,35 +21,35 @@ jobs:
       - name: Checkout Repository Code
         uses: actions/checkout@v3
 
-      # Step 2: Install Liquibase CLI
+      # Step 2: Install Liquibase CLI (Version 4.31.1)
       - name: Install Liquibase CLI
         run: |
-          echo "Installing Liquibase CLI..."
-          wget --quiet https://github.com/liquibase/liquibase/releases/download/v4.23.0/liquibase-4.23.0.zip
-          unzip liquibase-4.23.0.zip
+          echo "Installing Liquibase CLI version 4.31.1..."
+          wget --quiet https://github.com/liquibase/liquibase/releases/download/v4.31.1/liquibase-4.31.1.zip
+          unzip liquibase-4.31.1.zip
           chmod +x liquibase
           mv liquibase /usr/local/bin/liquibase
-          echo "Liquibase CLI installed successfully."
+          echo "Liquibase CLI (4.31.1) has been installed successfully!"
 
-      # Step 3: Prepare Workspace for Liquibase JARs
-      - name: Create Workspace for JARs
+      # Step 3: Create Directory for JAR Dependencies
+      - name: Create Workspace for JAR Dependencies
         run: mkdir -p $HOME/liquibase-jars
 
-      # Step 4: Restore Cached JARs
+      # Step 4: Restore Cached JAR Dependencies
       - name: Restore Dependencies from Cache
         id: restore_jars_cache
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v9
+          key: liquibase-jars-v10
           restore-keys: |
             liquibase-jars-
 
-      # Step 5: Download Dependencies If Cache Misses
-      - name: Download Liquibase Dependencies
+      # Step 5: Download Dependencies (If Not Cached)
+      - name: Download Compatible JAR Dependencies
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         run: |
-          echo "Downloading Liquibase dependencies..."
+          echo "Downloading dependencies for Liquibase 4.31..."
           JARS_DIR=$HOME/liquibase-jars
 
           # MongoDB Related JARs
@@ -57,45 +57,48 @@ jobs:
           wget --quiet -O $JARS_DIR/mongodb-driver-sync.jar https://search.maven.org/remotecontent?filepath=org/mongodb/mongodb-driver-sync/5.4.0/mongodb-driver-sync-5.4.0.jar
           wget --quiet -O $JARS_DIR/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.4.0/bson-5.4.0.jar
 
-          # Liquibase Core Libraries
-          wget --quiet -O $JARS_DIR/liquibase-core.jar https://search.maven.org/remotecontent?filepath=org/liquibase/liquibase-core/4.23.0/liquibase-core-4.23.0.jar
+          # Liquibase Core
+          wget --quiet -O $JARS_DIR/liquibase-core.jar https://search.maven.org/remotecontent?filepath=org/liquibase/liquibase-core/4.31.1/liquibase-core-4.31.1.jar
 
-          # Other Dependencies
+          # Liquibase MongoDB Extension
+          wget --quiet -O $JARS_DIR/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
+
+          # Additional Dependencies
           wget --quiet -O $JARS_DIR/commons-io.jar https://repo1.maven.org/maven2/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar
           wget --quiet -O $JARS_DIR/commons-lang3.jar https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar
           wget --quiet -O $JARS_DIR/picocli.jar https://repo1.maven.org/maven2/info/picocli/picocli/4.6.3/picocli-4.6.3.jar
           wget --quiet -O $JARS_DIR/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
 
-          # Liquibase MongoDB Extension
-          wget --quiet -O $JARS_DIR/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
+          echo "Dependencies downloaded to $JARS_DIR."
 
-          echo "Downloaded dependencies to $JARS_DIR."
-
-      # Step 6: Cache the JAR Files
-      - name: Cache the JAR Files
+      # Step 6: Cache Dependencies
+      - name: Cache Dependencies for Reuse
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v9
+          key: liquibase-jars-v10
 
-      # Step 7: Parse PR Command
+      # Step 7: Parse PR Comment for Liquibase Command
       - name: Parse PR Comment Command
         run: |
           COMMENT_BODY="${{ github.event.comment.body }}"
           echo "Parsing PR comment: $COMMENT_BODY"
 
-          if [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+status[[:space:]]+(.*)$ ]]; then
+          if [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+status ]]; then
               echo "COMMAND=status" >> $GITHUB_ENV
-          elif [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+update[[:space:]]+(.*)$ ]]; then
+          elif [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+update ]]; then
               echo "COMMAND=update" >> $GITHUB_ENV
           else
-              echo "Invalid command."
+              echo "Invalid command: $COMMENT_BODY"
               exit 1
           fi
 
-      # Step 8: Run liquibase_runner.sh
+      # Step 8: Run `liquibase_runner.sh`
       - name: Execute Liquibase Runner Script
+        env:
+          CLASSPATH: $HOME/liquibase-jars/*
         run: |
+          echo "Running Liquibase runner script..."
           chmod +x scripts/liquibase_runner.sh
           ./scripts/liquibase_runner.sh "${COMMAND}"
