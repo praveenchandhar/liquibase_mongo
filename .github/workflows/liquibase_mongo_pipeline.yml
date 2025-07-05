@@ -48,7 +48,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           python scripts/v3.py \
-            --query "${{ inputs.query }}" \
+            --query "$(printf '%s' '${{ inputs.query }}')" \
             --author "${{ inputs.author }}" \
             --context "${{ inputs.context }}" \
             --changelog "changeset/changelog.xml"
