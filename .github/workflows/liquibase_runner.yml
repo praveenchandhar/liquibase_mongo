@@ -52,6 +52,9 @@ jobs:
           echo "Downloading dependencies for Liquibase 4.31.1..."
           JARS_DIR=$HOME/liquibase-jars
 
+          # Clean up old downloads
+          rm -f $JARS_DIR/commons-lang3.jar
+
           # MongoDB JARs
           wget --quiet -O $JARS_DIR/mongodb-driver-core.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-core/5.5.0/mongodb-driver-core-5.5.0.jar
           wget --quiet -O $JARS_DIR/mongodb-driver-sync.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-sync/5.5.0/mongodb-driver-sync-5.5.0.jar
