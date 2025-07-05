@@ -53,9 +53,9 @@ jobs:
           JARS_DIR=$HOME/liquibase-jars
 
           # MongoDB JARs
-          wget --quiet -O $JARS_DIR/mongodb-driver-core.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-core/5.8.0/mongodb-driver-core-5.8.0.jar
-          wget --quiet -O $JARS_DIR/mongodb-driver-sync.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-sync/5.8.0/mongodb-driver-sync-5.8.0.jar
-          wget --quiet -O $JARS_DIR/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.8.0/bson-5.8.0.jar
+          wget --quiet -O $JARS_DIR/mongodb-driver-core.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-core/5.5.0/mongodb-driver-core-5.5.0.jar
+          wget --quiet -O $JARS_DIR/mongodb-driver-sync.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-sync/5.5.0/mongodb-driver-sync-5.5.0.jar
+          wget --quiet -O $JARS_DIR/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.5.0/bson-5.5.0.jar
 
           # Liquibase Core
           wget --quiet -O $JARS_DIR/liquibase-core.jar https://repo1.maven.org/maven2/org/liquibase/liquibase-core/4.31.1/liquibase-core-4.31.1.jar
