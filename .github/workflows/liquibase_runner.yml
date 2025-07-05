@@ -1,0 +1,51 @@
+name: Run Liquibase Commands from PR Comments
+
+on:
+  issue_comment:
+    types:
+      - created  # Trigger when a comment is made in the PR
+
+jobs:
+  liquibase_task:
+    if: |
+      github.event.issue.pull_request && (
+      contains(github.event.comment.body, '/liquibase status') ||
+      startsWith(github.event.comment.body, '/liquibase update'))
+    name: Run Liquibase Tasks
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository code
+      - name: Checkout Repository Code
+        uses: actions/checkout@v3
+
+      # Step 2: Set executable permission for Liquibase script
+      - name: Set Permissions for Liquibase Script
+        run: chmod +x scripts/liquibase_runner.sh
+
+      # Step 3: Check and Parse Command
+      - name: Parse PR Comment Command
+        id: parse_command
+        run: |
+          # Extract the command type and arguments
+          echo "Parsing PR comment for command..."
+          COMMENT_BODY="${{ github.event.comment.body }}"
+          if [[ "$COMMENT_BODY" == "/liquibase status" ]]; then
+            echo "COMMAND=status" >> $GITHUB_ENV
+          elif [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+update[[:space:]]+(.*)$ ]]; then
+            echo "COMMAND=update" >> $GITHUB_ENV
+            echo "DATABASES=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          else
+            echo "Invalid command."
+            exit 1
+          fi
+
+      # Step 4: Run Liquibase Based on Command
+      - name: Run Liquibase Command
+        run: |
+          echo "Running Liquibase..."
+          if [[ "$COMMAND" == "status" ]]; then
+            ./scripts/liquibase_runner.sh status
+          elif [[ "$COMMAND" == "update" ]]; then
+            ./scripts/liquibase_runner.sh update $DATABASES
+          fi
