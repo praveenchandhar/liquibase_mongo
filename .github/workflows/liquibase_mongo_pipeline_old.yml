@@ -42,7 +42,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}  # Reference to the stored OpenAI API key
         run: |
-          python scripts/v2.py \
+          python scripts/v1.py \
             --query "${{ inputs.query }}" \
             --changeset-id "${{ inputs.changeset_id }}" \
             --author "${{ inputs.author }}" \
