@@ -3,7 +3,7 @@ name: Liquibase Commands from PR Comments
 on:
   issue_comment:
     types:
-      - created
+      - created  # Trigger on PR comment creation.
 
 jobs:
   liquibase_task:
@@ -17,32 +17,69 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout repository code
       - name: Checkout Repository Code
         uses: actions/checkout@v3
 
-      - name: Restore Liquibase Cache
-        id: restore_cache
+      # Step 2: Restore Liquibase CLI Cache
+      - name: Restore Liquibase CLI Cache
+        id: restore_cli_cache
         uses: actions/cache@v3
         with:
           path: /usr/local/bin/liquibase
-          key: liquibase-v4-23-0
+          key: liquibase-cli-v4-23-0
           restore-keys: |
-            liquibase-
+            liquibase-cli-
 
+      # Step 3: Install Liquibase CLI (if Cache Miss)
       - name: Install Liquibase CLI
-        if: steps.restore_cache.outputs.cache-hit != 'true'
+        if: steps.restore_cli_cache.outputs.cache-hit != 'true'
         run: |
           echo "Installing Liquibase CLI..."
           wget https://github.com/liquibase/liquibase/releases/download/v4.23.0/liquibase-4.23.0.zip
           unzip liquibase-4.23.0.zip
           chmod +x liquibase
           mv liquibase /usr/local/bin/liquibase
-          mkdir -p /usr/local/bin/internal/lib
-          cp liquibase.jar /usr/local/bin/internal/lib/liquibase-core.jar
 
+      # Step 4: Restore Liquibase Dependency Jars Cache
+      - name: Restore Liquibase Jar Dependencies Cache
+        id: restore_jars_cache
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/internal/lib
+          key: liquibase-jars-v4-31-1
+          restore-keys: |
+            liquibase-jars-
+
+      # Step 5: Download and Cache Liquibase Jars (if Missing)
+      - name: Download Liquibase Jar Dependencies
+        if: steps.restore_jars_cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Downloading Liquibase dependency jars..."
+          mkdir -p /usr/local/bin/internal/lib
+          wget --quiet -O /usr/local/bin/internal/lib/commons-io.jar https://repo1.maven.org/maven2/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar
+          wget --quiet -O /usr/local/bin/internal/lib/commons-lang3.jar https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.12.0/commons-lang3-3.12.0.jar
+          wget --quiet -O /usr/local/bin/internal/lib/picocli.jar https://repo1.maven.org/maven2/info/picocli/picocli/4.6.3/picocli-4.6.3.jar
+          wget --quiet -O /usr/local/bin/internal/lib/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
+          wget --quiet -O /usr/local/bin/internal/lib/liquibase-core.jar https://github.com/liquibase/liquibase/releases/download/v4.31.1/liquibase-core.jar
+          wget --quiet -O /usr/local/bin/internal/lib/liquibase-mongodb-4.31.1.jar https://repo1.maven.org/maven2/org/liquibase/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
+          wget --quiet -O /usr/local/bin/internal/lib/mongodb-driver-sync-5.4.0.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-sync/5.4.0/mongodb-driver-sync-5.4.0.jar
+          wget --quiet -O /usr/local/bin/internal/lib/mongodb-driver-core-5.4.0.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-core/5.4.0/mongodb-driver-core-5.4.0.jar
+          wget --quiet -O /usr/local/bin/internal/lib/bson-5.4.0.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.4.0/bson-5.4.0.jar
+
+      # Step 6: Save Liquibase Jar Dependencies to Cache
+      - name: Save Liquibase Jar Dependencies to Cache
+        if: steps.restore_jars_cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/internal/lib
+          key: liquibase-jars-v4-31-1
+
+      # Step 7: Set Permissions for Liquibase Script
       - name: Set Permissions for Liquibase Script
         run: chmod +x scripts/liquibase_runner.sh
 
+      # Step 8: Parse PR Comment Command and Databases
       - name: Parse PR Comment Command
         id: parse_command
         run: |
@@ -62,6 +99,7 @@ jobs:
               exit 1
           fi
 
+      # Step 9: Run Liquibase Command
       - name: Run Liquibase Command
         id: run_liquibase
         run: |
@@ -72,6 +110,7 @@ jobs:
             ./scripts/liquibase_runner.sh update $DATABASES > liquibase_update_output.txt 2>&1 || cat liquibase_update_output.txt
           fi
 
+      # Step 10: Post Output Back to PR
       - name: Post Output Back to PR
         uses: actions/github-script@v6
         with:
