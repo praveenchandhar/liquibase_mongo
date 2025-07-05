@@ -11,61 +11,43 @@ databases=(
     ["liquibase_test"]="liquibase_test"
 )
 
-# Liquibase MongoDB connection details (replace with environment variables for security)
-MONGO_CONNECTION_STRING="mongodb+srv://praveen-mongodb-github.lhhwdqa.mongodb.net"
-MONGO_USERNAME="praveenchandharts"
-MONGO_PASSWORD="kixIUsDWGd3n6w5S"
-
 # Check if a command is provided
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <command> [<database1> <database2> ...]"
+    echo "Usage: $0 <command>"
     exit 1
 fi
 
 # Read the command (`status` or `update`)
 command=$1
-shift  # Shift to process subsequent arguments (databases)
+shift  # Shift to process database arguments
 
-# Common CLASSPATH setup for Liquibase dependencies
-CLASSPATH="$HOME/liquibase-jars/*"
-
-case $command in
-    "status")
-        echo "Running Liquibase status check..."
-        liquibase \
-            --classpath=$CLASSPATH \
-            --url="jdbc:$MONGO_CONNECTION_STRING/" \
-            --username=$MONGO_USERNAME \
-            --password=$MONGO_PASSWORD \
+case "$command" in
+    status)
+        echo "Running Liquibase status..."
+        java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
             --logLevel=debug \
             --changeLogFile=changelog.xml \
             status
-        echo "Liquibase status check complete."
         ;;
     
-    "update")
-        for db in "$@"
-        do
+    update)
+        echo "Running Liquibase update..."
+        for db in "$@"; do
             if [ -n "${databases[$db]}" ]; then
-                echo "Updating Liquibase for database: $db"
-                liquibase \
-                    --classpath=$CLASSPATH \
-                    --url="jdbc:$MONGO_CONNECTION_STRING/$db?retryWrites=true&w=majority" \
-                    --username=$MONGO_USERNAME \
-                    --password=$MONGO_PASSWORD \
+                echo "Updating database: $db"
+                java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
+                    --url="jdbc:mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@your-cluster.mongodb.net/$db?retryWrites=true&w=majority" \
                     --changeLogFile=changelog.xml \
-                    --contexts="${databases[$db]}" \
                     --logLevel=debug \
-                    update > liquibase_$db.log 2>&1
-                echo "Update applied to $db. Log saved to liquibase_$db.log"
+                    update
             else
-                echo "Database $db not found in the list."
+                echo "Database $db not found."
             fi
         done
         ;;
     
     *)
-        echo "Unknown command: $command. Supported commands are 'status' and 'update'."
+        echo "Unknown command: $command"
         exit 1
         ;;
 esac
