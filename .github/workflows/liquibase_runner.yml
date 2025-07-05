@@ -32,7 +32,7 @@ jobs:
           echo "Liquibase CLI (4.31.1) has been installed successfully."
 
       # Step 3: Create Directory for Dependencies
-      - name: Create Workspace for Dependencies
+      - name: Create Directory for Dependencies
         run: mkdir -p $HOME/liquibase-jars
 
       # Step 4: Restore Cached Dependencies
@@ -41,11 +41,11 @@ jobs:
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v11
+          key: liquibase-jars-v12
           restore-keys: |
             liquibase-jars-
 
-      # Step 5: Download Dependencies (Only if Cache Misses)
+      # Step 5: Download Compatible JARs (If Not Cached)
       - name: Download Liquibase Dependencies
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         run: |
@@ -69,17 +69,17 @@ jobs:
           wget --quiet -O $JARS_DIR/picocli.jar https://repo1.maven.org/maven2/info/picocli/picocli/4.6.3/picocli-4.6.3.jar
           wget --quiet -O $JARS_DIR/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
 
-          echo "Dependencies downloaded to $JARS_DIR."
+          echo "All dependencies downloaded to $JARS_DIR."
 
-      # Step 6: Cache Dependencies for Faster Reuse
-      - name: Cache JAR Files
+      # Step 6: Cache Dependencies for Reuse
+      - name: Cache Liquibase JARs
         if: steps.restore_jars_cache.outputs.cache-hit != 'true'
         uses: actions/cache@v3
         with:
           path: $HOME/liquibase-jars
-          key: liquibase-jars-v11
+          key: liquibase-jars-v12
 
-      # Step 7: Parse PR Comment
+      # Step 7: Parse PR Comment Command
       - name: Parse PR Comment
         run: |
           COMMENT_BODY="${{ github.event.comment.body }}"
@@ -94,9 +94,9 @@ jobs:
               exit 1
           fi
 
-      # Step 8: Run `liquibase_runner.sh`
+      # Step 8: Run liquibase_runner.sh
       - name: Execute Liquibase Runner Script
         run: |
-          echo "Running the Liquibase runner script..."
+          echo "Running Liquibase runner script..."
           chmod +x scripts/liquibase_runner.sh
           ./scripts/liquibase_runner.sh "${COMMAND}"
