@@ -1,4 +1,4 @@
-name: Liquibase MongoDB Workflow
+name: Liquibase MongoDB Workflow OLD
 
 on:
   workflow_dispatch:
