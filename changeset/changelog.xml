@@ -19,6 +19,8 @@
     
 
 <changeSet id="1.3" author="praveen" context="liquibase_test">
-    <createCollection collectionName="test_2" />
+    <mongodb:createCollectioncreateCollection collectionName="test_2" />
 </changeSet>
+
+    
 </databaseChangeLog>
