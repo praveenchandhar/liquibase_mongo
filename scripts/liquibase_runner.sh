@@ -13,11 +13,8 @@ fi
 command="$1"
 database="$2"
 
-# Setup CLASSPATH for Liquibase dependencies
-CLASSPATH=$(find "$HOME/liquibase-jars" -name "*.jar" | tr '\n' ':')
-
 # Print classpath for debugging
-echo "Using classpath: $CLASSPATH"
+echo "Using LIQUIBASE_CLASSPATH: $LIQUIBASE_CLASSPATH"
 
 # Common Liquibase options
 LIQUIBASE_OPTS=(
@@ -26,15 +23,15 @@ LIQUIBASE_OPTS=(
   --changeLogFile=changeset/changelog.xml
 )
 
-# Execute the appropriate Liquibase command
+# Execute the appropriate Liquibase command using the CLI
 case "$command" in
   status)
     echo "Running Liquibase status for database: $database"
-    java -cp "$CLASSPATH" liquibase.integration.commandline.Main "${LIQUIBASE_OPTS[@]}" status
+    liquibase "${LIQUIBASE_OPTS[@]}" status
     ;;
   update)
     echo "Running Liquibase update for database: $database"
-    java -cp "$CLASSPATH" liquibase.integration.commandline.Main "${LIQUIBASE_OPTS[@]}" update
+    liquibase "${LIQUIBASE_OPTS[@]}" update
     ;;
   *)
     echo "Unknown command: $command"
