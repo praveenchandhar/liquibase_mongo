@@ -1,6 +1,8 @@
 import re
 import argparse
 import os
+import ast
+import json
 import xml.etree.ElementTree as ET
 
 
@@ -37,11 +39,42 @@ def get_next_changeset_id(changelog_path):
 
 
 def correct_json_syntax(json_string):
-    """Correct common JSON syntax issues."""
-    json_string = re.sub(r'(?<!")\b(\w+)\b\s*:', r'"\1":', json_string)
-    json_string = re.sub(r':\s*(?![\[{"])(\w+)', r': "\1"', json_string)
-    json_string = json_string.replace("'", '"')
-    return json_string
+    """
+    Correct and validate JSON-like syntax for MongoDB operations.
+
+    Args:
+        json_string (str): A string containing MongoDB JSON or query-like structure.
+
+    Returns:
+        str: Properly formatted, valid JSON for use in Liquibase.
+
+    Raises:
+        ValueError: If JSON parsing fails.
+    """
+    try:
+        # Step 1: Handle missing quotes around keys in JSON-like strings
+        # Match unquoted keys and wrap them in double-quotes (e.g., name: -> "name":)
+        json_string = re.sub(r'(?<!")\b(\w+)\b\s*:', r'"\1":', json_string)
+
+        # Step 2: Handle MongoDB operators and unquoted/invalid values
+        # Ensure MongoDB operators like $in, $gt, etc., remain valid JSON when parsed
+        json_string = re.sub(r':\s*(?![\[{"])(\w+)', r': "\1"', json_string)
+
+        # Step 3: Ensure standard JSON syntax
+        # Replace single quotes with double quotes for JSON compatibility
+        json_string = json_string.replace("'", '"')
+
+        # Step 4: Attempt parsing to catch invalid formats
+        # Convert the string into a Python-object-like dictionary (handles nested JSON)
+        parsed_json = ast.literal_eval(json_string)
+
+        # Step 5: Convert Python object back into valid JSON
+        formatted_json = json.dumps(parsed_json, indent=4)
+
+    except (SyntaxError, ValueError) as e:
+        raise ValueError(f"Error processing JSON-like syntax. Input string was:\n{json_string}\nError: {e}")
+
+    return formatted_json
 
 
 def generate_changelog(mongodb_query, changeset_id, author_name, context):
