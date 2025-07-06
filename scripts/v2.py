@@ -37,6 +37,7 @@ def get_next_changeset_id(changelog_path):
     else:
         return "1.1"  # Start at 1.1 by default
 
+
 def correct_json_syntax(json_string):
     """
     Correct and validate JSON-like syntax for MongoDB operations.
@@ -51,28 +52,29 @@ def correct_json_syntax(json_string):
         ValueError: If JSON parsing fails.
     """
     try:
-        # Step 1: Handle missing quotes around keys (including MongoDB operators like $in)
-        # Match unquoted keys and MongoDB operators, wrapping them in double-quotes
-        json_string = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', json_string)  # Quote unquoted keys
-        json_string = re.sub(r'(?<!")\$(\w+)\b', r'"$\1"', json_string)         # Quote MongoDB operators like $in
+        # Step 1: Fix $ operators like $in, $gt
+        # Match anything starting with $ (e.g., $in) and ensure it is quoted
+        json_string = re.sub(r'(?<!")\$(\w+)\b', r'"$\1"', json_string)
 
-        # Step 2: Replace single quotes with double quotes for JSON compatibility
-        # This step ensures compatibility with JSON standards
+        # Step 2: Handle unquoted keys (keys without quotes)
+        # Match unquoted keys and wrap them with double quotes
+        json_string = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', json_string)
+
+        # Step 3: Replace single quotes with double quotes
+        # Replace any single quotes with double quotes for valid JSON syntax
         json_string = json_string.replace("'", '"')
 
-        # Step 3: Ensure proper brackets for MongoDB commands like insertMany
-        # Remove stray or accidental braces/brackets if necessary for processing
-        if re.fullmatch(r"\{.*\}", json_string):
-            json_string = f"[{json_string}]"
-
-        # Step 4: Attempt parsing JSON to validate its correctness
-        # This converts the JSON-like string into a Python object and ensures JSON compliance
+        # Step 4: Validate that it is valid JSON-like syntax
+        # Use ast.literal_eval to parse it into a Python dictionary/list
+        # NOTE: This works after making necessary corrections to the syntax
         parsed_json = ast.literal_eval(json_string)
 
-        # Step 5: Convert back to properly formatted JSON
+        # Step 5: Convert into properly formatted JSON
+        # Use json.dumps to pretty-print and produce valid JSON
         formatted_json = json.dumps(parsed_json, indent=4)
 
     except (SyntaxError, ValueError) as e:
+        # Raise error with more context if parsing/formatting fails
         raise ValueError(f"[correct_json_syntax] Error processing input JSON-like syntax:\n{json_string}\nError: {e}")
 
     return formatted_json
