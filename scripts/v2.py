@@ -37,7 +37,6 @@ def get_next_changeset_id(changelog_path):
     else:
         return "1.1"  # Start at 1.1 by default
 
-
 def correct_json_syntax(json_string):
     """
     Correct and validate JSON-like syntax for MongoDB operations.
@@ -52,24 +51,29 @@ def correct_json_syntax(json_string):
         ValueError: If JSON parsing fails.
     """
     try:
-        # Step 1: Handle missing quotes around keys in JSON-like strings (including MongoDB operators like $in)
-        # Match unquoted keys (e.g., name:) and MongoDB operators (e.g., $in:) and wrap them in double-quotes
-        json_string = re.sub(r'(?<!")\b(\w+)\b\s*:', r'"\1":', json_string)
-        json_string = re.sub(r'(?<!")\$(\w+)\b', r'"$\1"', json_string)  # Handle $-prefixed MongoDB operators
+        # Step 1: Handle missing quotes around keys (including MongoDB operators like $in)
+        # Match unquoted keys and MongoDB operators, wrapping them in double-quotes
+        json_string = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', json_string)  # Quote unquoted keys
+        json_string = re.sub(r'(?<!")\$(\w+)\b', r'"$\1"', json_string)         # Quote MongoDB operators like $in
 
-        # Step 2: Ensure valid JSON syntax
-        # Replace single quotes (') with double quotes (") for JSON compatibility
+        # Step 2: Replace single quotes with double quotes for JSON compatibility
+        # This step ensures compatibility with JSON standards
         json_string = json_string.replace("'", '"')
 
-        # Step 3: Attempt parsing to catch invalid formats
-        # Convert the string into a Python dictionary to validate JSON-like structure
+        # Step 3: Ensure proper brackets for MongoDB commands like insertMany
+        # Remove stray or accidental braces/brackets if necessary for processing
+        if re.fullmatch(r"\{.*\}", json_string):
+            json_string = f"[{json_string}]"
+
+        # Step 4: Attempt parsing JSON to validate its correctness
+        # This converts the JSON-like string into a Python object and ensures JSON compliance
         parsed_json = ast.literal_eval(json_string)
 
-        # Step 4: Convert Python object back into valid JSON
+        # Step 5: Convert back to properly formatted JSON
         formatted_json = json.dumps(parsed_json, indent=4)
 
     except (SyntaxError, ValueError) as e:
-        raise ValueError(f"Error processing JSON-like syntax. Input string was:\n{json_string}\nError: {e}")
+        raise ValueError(f"[correct_json_syntax] Error processing input JSON-like syntax:\n{json_string}\nError: {e}")
 
     return formatted_json
 
