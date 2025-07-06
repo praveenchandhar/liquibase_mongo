@@ -52,23 +52,20 @@ def correct_json_syntax(json_string):
         ValueError: If JSON parsing fails.
     """
     try:
-        # Step 1: Handle missing quotes around keys in JSON-like strings
-        # Match unquoted keys and wrap them in double-quotes (e.g., name: -> "name":)
+        # Step 1: Handle missing quotes around keys in JSON-like strings (including MongoDB operators like $in)
+        # Match unquoted keys (e.g., name:) and MongoDB operators (e.g., $in:) and wrap them in double-quotes
         json_string = re.sub(r'(?<!")\b(\w+)\b\s*:', r'"\1":', json_string)
+        json_string = re.sub(r'(?<!")\$(\w+)\b', r'"$\1"', json_string)  # Handle $-prefixed MongoDB operators
 
-        # Step 2: Handle MongoDB operators and unquoted/invalid values
-        # Ensure MongoDB operators like $in, $gt, etc., remain valid JSON when parsed
-        json_string = re.sub(r':\s*(?![\[{"])(\w+)', r': "\1"', json_string)
-
-        # Step 3: Ensure standard JSON syntax
-        # Replace single quotes with double quotes for JSON compatibility
+        # Step 2: Ensure valid JSON syntax
+        # Replace single quotes (') with double quotes (") for JSON compatibility
         json_string = json_string.replace("'", '"')
 
-        # Step 4: Attempt parsing to catch invalid formats
-        # Convert the string into a Python-object-like dictionary (handles nested JSON)
+        # Step 3: Attempt parsing to catch invalid formats
+        # Convert the string into a Python dictionary to validate JSON-like structure
         parsed_json = ast.literal_eval(json_string)
 
-        # Step 5: Convert Python object back into valid JSON
+        # Step 4: Convert Python object back into valid JSON
         formatted_json = json.dumps(parsed_json, indent=4)
 
     except (SyntaxError, ValueError) as e:
