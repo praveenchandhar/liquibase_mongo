@@ -42,4 +42,19 @@
         ]]></mongodb:documents>
     </mongodb:insertMany>
 </changeSet>
+
+<changeSet id="1.7" author="praveen" context="liquibase_test">
+    <mongodb:insertMany collectionName="sk_uam_permission_group">
+        <mongodb:documents><![CDATA[
+            {
+    "permissionGroupName": {
+        "$in": [
+            "sp.benefits.benefitguide.viewer",
+            "sp.benefits.benefitguide.tpviewer"
+        ]
+    }
+}
+        ]]></mongodb:documents>
+    </mongodb:insertMany>
+</changeSet>
 </databaseChangeLog>
