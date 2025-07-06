@@ -39,45 +39,11 @@ def get_next_changeset_id(changelog_path):
 
 
 def correct_json_syntax(json_string):
-    """
-    Correct and validate JSON-like syntax for MongoDB operations.
-
-    Args:
-        json_string (str): A string containing MongoDB JSON or query-like structure.
-
-    Returns:
-        str: Properly formatted, valid JSON for use in Liquibase.
-
-    Raises:
-        ValueError: If JSON parsing fails.
-    """
-    try:
-        # Step 1: Fix $ operators like $in, $gt
-        # Match anything starting with $ (e.g., $in) and ensure it is quoted
-        json_string = re.sub(r'(?<!")\$(\w+)\b', r'"$\1"', json_string)
-
-        # Step 2: Handle unquoted keys (keys without quotes)
-        # Match unquoted keys and wrap them with double quotes
-        json_string = re.sub(r'(?<!")\b(\w+)\b(?=\s*:)', r'"\1"', json_string)
-
-        # Step 3: Replace single quotes with double quotes
-        # Replace any single quotes with double quotes for valid JSON syntax
-        json_string = json_string.replace("'", '"')
-
-        # Step 4: Validate that it is valid JSON-like syntax
-        # Use ast.literal_eval to parse it into a Python dictionary/list
-        # NOTE: This works after making necessary corrections to the syntax
-        parsed_json = ast.literal_eval(json_string)
-
-        # Step 5: Convert into properly formatted JSON
-        # Use json.dumps to pretty-print and produce valid JSON
-        formatted_json = json.dumps(parsed_json, indent=4)
-
-    except (SyntaxError, ValueError) as e:
-        # Raise error with more context if parsing/formatting fails
-        raise ValueError(f"[correct_json_syntax] Error processing input JSON-like syntax:\n{json_string}\nError: {e}")
-
-    return formatted_json
+    """Correct common JSON syntax issues."""
+    json_string = re.sub(r'(?<!")\b(\w+)\b\s*:', r'"\1":', json_string)
+    json_string = re.sub(r':\s*(?![\[{"])(\w+)', r': "\1"', json_string)
+    json_string = json_string.replace("'", '"')
+    return json_string
 
 
 def generate_changelog(mongodb_query, changeset_id, author_name, context):
