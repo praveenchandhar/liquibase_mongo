@@ -3,22 +3,20 @@ name: Post Liquibase Usage Guide on PR Merge
 on:
   pull_request:
     types:
-      - closed # Trigger the workflow when a PR is closed
+      - closed
 
 jobs:
   post-liquibase-guide:
-    # Only run this job when the PR is merged
     if: ${{ github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Post Liquibase Usage Guide
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub Auth Token provided by GitHub Actions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Posting Liquibase usage guide as a comment on the PR..."
 
-          # Define the Liquibase usage message
           MESSAGE=$(
             cat <<EOF
 🌟🚀 **Liquibase Usage Guide** 🌟
@@ -45,6 +43,8 @@ Type the following in your PR comment:
 \`\`\`  
 **Description**: This will display the status of applied and pending changesets for the specified databases.
 
+---
+
 **2️⃣ Apply changesets:**  
 Type the following in your PR comment:  
 \`\`\`plaintext
@@ -57,7 +57,7 @@ Type the following in your PR comment:
 ### 👩‍🔧 **Troubleshooting Tips:** 💡  
 💡 Ensure jar files are available in the \`liquibase-jars\` directory.  
 💡 Verify database connection strings and credentials.  
-💡 Check your `changelog.xml` for proper syntax and context-specific filters.
+💡 Check your \`changelog.xml\` for proper syntax or context-specific filters.
 
 ---
 
@@ -65,9 +65,8 @@ Type the following in your PR comment:
 EOF
           )
 
-          # Post the message to the PR using GitHub's Issues API
           curl -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"body": "'"${MESSAGE}"'"}' \
+            -d "{\"body\": \"$MESSAGE\"}" \
             https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments
