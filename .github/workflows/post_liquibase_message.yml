@@ -17,9 +17,7 @@ jobs:
         run: |
           echo "Posting Liquibase usage guide as a comment on the PR..."
 
-          MESSAGE=$(
-            cat <<EOF
-🌟🚀 **Liquibase Usage Guide** 🌟
+          MESSAGE=$(printf "%s\n" "🌟🚀 **Liquibase Usage Guide** 🌟
 
 Hello there! 👋 **Ready to rock some database changes using Liquibase?**
 
@@ -61,9 +59,7 @@ Type the following in your PR comment:
 
 ---
 
-🎉 **Keep rocking database updates!** 🚀  
-EOF
-          )
+🎉 **Keep rocking database updates!** 🚀")
 
           curl -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
