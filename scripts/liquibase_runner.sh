@@ -34,6 +34,7 @@ export CLASSPATH
 echo "Running Liquibase runner script..."
 echo "Command: $command"
 echo "Databases (raw input): $raw_databases"
+echo "Using classpath: $CLASSPATH"
 
 # Split and clean the database input
 IFS=',' read -r -a database_array <<< "$raw_databases"
@@ -66,12 +67,12 @@ for db in "${valid_databases[@]}"; do
     context="${DATABASE_CONTEXTS[$db]}"
     echo "Running Liquibase '$command' for database: '$db' with context: '$context'"
 
-    liquibase \
+    java -cp "$CLASSPATH" liquibase.integration.commandline.Main \
         --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true" \
         --changeLogFile="changeset/changelog.xml" \
         --contexts="$context" \
         --logLevel="debug" \
-        "$command" # Redirect output dynamically based on the workflow
+        "$command"
 
     if [[ $? -eq 0 ]]; then
         echo "Liquibase '$command' for database '$db' executed successfully."
