@@ -28,8 +28,4 @@
     <mongodb:createCollection collectionName="test_collection_1" />
 </changeSet>
     
-
-<changeSet id="1.5" author="praveen" context="sample_mflix">
-    <mongodb:createCollection collectionName="dummy_collection" />
-</changeSet>
 </databaseChangeLog>
