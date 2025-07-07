@@ -3,7 +3,7 @@ name: Post Liquibase Usage Guide on PR Merge
 on:
   pull_request:
     types:
-      - closed # Trigger the workflow when a PR is closed (merged or not)
+      - closed # Trigger the workflow when a PR is closed
 
 jobs:
   post-liquibase-guide:
