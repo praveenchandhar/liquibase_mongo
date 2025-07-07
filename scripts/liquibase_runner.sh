@@ -64,16 +64,16 @@ for db in "${valid_databases[@]}"; do
   context="${DATABASE_CONTEXTS[$db]}" # Get the context for the database
   echo "Running Liquibase $command for database: $db with context: $context"
 
-  liquibase \
+  output=$(liquibase \
       --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true" \
       --username=liquibase_user \
       --password=qggDXaeeyro9NlwNKK1V \
       --changeLogFile=changeset/changelog.xml \
       --contexts="$context" \
       --logLevel=debug \
-      "$command" > liquibase_${db}.log 2>&1
+      "$command" 2>&1) # Capture output
 
-  echo "Liquibase command '$command' for database '$db' executed successfully."
-  echo "Log saved to liquibase_${db}.log"
+  echo "Liquibase output for database '$db':"
+  echo "$output"
   echo "------------------------------------------------------------"
 done
