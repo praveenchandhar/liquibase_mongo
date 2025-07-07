@@ -7,8 +7,7 @@ on:
 
 jobs:
   post-liquibase-guide:
-    # Only run this job when the PR is merged
-    if: github.event.pull_request.merged == true
+    if: ${{ github.event.pull_request.merged == true }} # Run only if the PR was merged
     runs-on: ubuntu-latest
 
     steps:
@@ -16,9 +15,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub Auth Token
         run: |
-          # Define the Liquibase usage guide
-          MESSAGE=$(
-            cat <<EOF
+          # Define the Liquibase usage message
+          MESSAGE=$(cat <<EOF
 🌟🚀 **Liquibase Usage Guide** 🌟
 
 Hello there! 👋 **Ready to rock some database changes using Liquibase?**
@@ -38,14 +36,14 @@ Here's how you can execute Liquibase commands from your **PR comments**:
 
 **1️⃣ Check the status of changesets:**  
 Type the following in your PR comment:  
-\`\`\`plaintext
+\`\`\`
 /liquibase status liquibase_test, sample_mflix
 \`\`\`  
 **Description**: This will display the status of applied and pending changesets for the specified databases.
 
 **2️⃣ Apply changesets:**  
 Type the following in your PR comment:  
-\`\`\`plaintext
+\`\`\`
 /liquibase update liquibase_test, sample_mflix
 \`\`\`  
 **Description**: This will apply any pending changesets to the specified databases.
@@ -63,9 +61,9 @@ Type the following in your PR comment:
 EOF
           )
 
-          # Post the comment using GitHub's Issues API
+          # Post the message to the PR using GitHub's Issues API
           curl -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            -d '{"body": "'"$MESSAGE"'"}' \
+            -d '{"body": "'"${MESSAGE}"'"}' \
             https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments
