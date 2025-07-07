@@ -121,18 +121,38 @@ jobs:
            echo "Checking liquibase-jars directory..."
            ls -l $HOME/liquibase-jars/
 
-      # Step 9: Execute Liquibase Runner Script
+      # Step 9: Run Liquibase Runner Script and Capture Output
       - name: Execute Liquibase Runner Script
         id: liquibase_script
         run: |
           echo "Running Liquibase runner script..."
           chmod +x scripts/liquibase_runner.sh
-          ./scripts/liquibase_runner.sh "${COMMAND}" "${DATABASE}" | tee runner_output.txt
+          ./scripts/liquibase_runner.sh "${COMMAND}" "${DATABASE}" | tee runner_output_raw.txt
 
-      # Step 10: Add Output to the GitHub Comment
-      - name: Comment Output on PR
+      # Step 10: Clean and Format Output
+      - name: Clean and Format Output
+        run: |
+          echo "Cleaning and formatting output..."
+          
+          # Read the raw output and remove verbose content
+          sed -r '/Using classpath:/d' runner_output_raw.txt | \
+          sed -r '/Liquibase banner or unnecessary logs/d' | \
+          sed -r '/^(#+|_|\\|Get|Starting Liquibase)/d' | \
+          cat > runner_output_clean.txt
+
+          # Add a header to the output
+          echo "### Liquibase Runner Output" > runner_output_final.txt
+          echo '```' >> runner_output_final.txt
+          cat runner_output_clean.txt >> runner_output_final.txt
+          echo '```' >> runner_output_final.txt
+
+          echo "Cleaned and formatted output:"
+          cat runner_output_final.txt
+
+      # Step 11: Add Clean Output to the GitHub Comment
+      - name: Comment Neat Output on PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          OUTPUT=$(cat runner_output.txt)
-          gh pr comment ${{ github.event.issue.number }} --body "### Liquibase Runner Output\n\`\`\`\n$OUTPUT\n\`\`\`"
+          COMMENT=$(cat runner_output_final.txt)
+          gh pr comment ${{ github.event.issue.number }} --body "$COMMENT"
