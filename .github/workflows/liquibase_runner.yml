@@ -120,10 +120,19 @@ jobs:
         run: |
            echo "Checking liquibase-jars directory..."
            ls -l $HOME/liquibase-jars/
- 
+
       # Step 9: Execute Liquibase Runner Script
       - name: Execute Liquibase Runner Script
+        id: liquibase_script
         run: |
           echo "Running Liquibase runner script..."
           chmod +x scripts/liquibase_runner.sh
-          ./scripts/liquibase_runner.sh "${COMMAND}" "${DATABASE}"
+          ./scripts/liquibase_runner.sh "${COMMAND}" "${DATABASE}" | tee runner_output.txt
+
+      # Step 10: Add Output to the GitHub Comment
+      - name: Comment Output on PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OUTPUT=$(cat runner_output.txt)
+          gh pr comment ${{ github.event.issue.number }} --body "### Liquibase Runner Output\n\`\`\`\n$OUTPUT\n\`\`\`"
