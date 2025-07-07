@@ -3,11 +3,11 @@
 # MongoDB Atlas connection base (without database)
 MONGO_CONNECTION_BASE="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-mongodb-github.lhhwdqa.mongodb.net"
 
-# Define a list of allowed/pre-approved databases
-ALLOWED_DATABASES=(
-  "liquibase_test"
-  "sample_mflix"
-
+# Define a list of allowed/pre-approved databases and their corresponding contexts
+declare -A DATABASE_CONTEXTS
+DATABASE_CONTEXTS=(
+  ["liquibase_test"]="liquibase_test"
+  ["sample_mflix"]="sample_mflix"
 )
 
 # Check if command and database(s) are provided
@@ -52,7 +52,7 @@ done
 # Step 3: Validate Against Allowed Databases
 valid_databases=()
 for db in "${sanitized_databases[@]}"; do
-  if [[ " ${ALLOWED_DATABASES[*]} " =~ " $db " ]]; then
+  if [[ -n "${DATABASE_CONTEXTS[$db]}" ]]; then
     valid_databases+=("$db")
   else
     echo "Skipping invalid or unknown database: '$db'"
@@ -67,13 +67,15 @@ fi
 
 # Step 5: Execute Liquibase Command for Each Valid Database
 for db in "${valid_databases[@]}"; do
-  echo "Running Liquibase $command for database: $db"
+  context="${DATABASE_CONTEXTS[$db]}"  # Get the context corresponding to the database
+  echo "Running Liquibase $command for database: $db with context: $context"
 
   # Common Liquibase options
   LIQUIBASE_OPTS=(
     --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true"
     --logLevel=debug
     --changeLogFile=changeset/changelog.xml
+    --contexts="$context"
   )
 
   # Execute the appropriate Liquibase command
