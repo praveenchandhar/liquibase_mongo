@@ -68,8 +68,6 @@ for db in "${valid_databases[@]}"; do
 
     liquibase \
         --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true" \
-        --username="liquibase_user" \
-        --password="qggDXaeeyro9NlwNKK1V" \
         --changeLogFile="changeset/changelog.xml" \
         --contexts="$context" \
         --logLevel="debug" \
