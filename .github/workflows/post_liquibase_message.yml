@@ -7,16 +7,20 @@ on:
 
 jobs:
   post-liquibase-guide:
-    if: ${{ github.event.pull_request.merged == true }} # Run only if the PR was merged
+    # Only run this job when the PR is merged
+    if: ${{ github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Post Liquibase Usage Guide
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub Auth Token
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # GitHub Auth Token provided by GitHub Actions
         run: |
+          echo "Posting Liquibase usage guide as a comment on the PR..."
+
           # Define the Liquibase usage message
-          MESSAGE=$(cat <<EOF
+          MESSAGE=$(
+            cat <<EOF
 🌟🚀 **Liquibase Usage Guide** 🌟
 
 Hello there! 👋 **Ready to rock some database changes using Liquibase?**
@@ -26,8 +30,8 @@ Here's how you can execute Liquibase commands from your **PR comments**:
 ---
 
 ### ⚡ **Available Liquibase Commands:**
-✅ \`/liquibase status <db1>, <db2>\` - Check the status of changesets for the specified databases.  
-✅ \`/liquibase update <db1>, <db2>\` - Apply pending changesets for the specified databases.  
+✅ \`/liquibase status <db1>, <db2>\` - Check the status of changesets for specified databases.  
+✅ \`/liquibase update <db1>, <db2>\` - Apply pending changesets for specified databases.  
 ✅ \`/liquibase\` - Display this detailed guide 🎉.
 
 ---
@@ -36,14 +40,14 @@ Here's how you can execute Liquibase commands from your **PR comments**:
 
 **1️⃣ Check the status of changesets:**  
 Type the following in your PR comment:  
-\`\`\`
+\`\`\`plaintext
 /liquibase status liquibase_test, sample_mflix
 \`\`\`  
 **Description**: This will display the status of applied and pending changesets for the specified databases.
 
 **2️⃣ Apply changesets:**  
 Type the following in your PR comment:  
-\`\`\`
+\`\`\`plaintext
 /liquibase update liquibase_test, sample_mflix
 \`\`\`  
 **Description**: This will apply any pending changesets to the specified databases.
