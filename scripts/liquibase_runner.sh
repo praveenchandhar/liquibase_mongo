@@ -23,6 +23,9 @@ raw_databases="$2"
 # Setup CLASSPATH for Liquibase dependencies
 CLASSPATH=$(find "$HOME/liquibase-jars" -name "*.jar" | tr '\n' ':')
 
+# Debug: Confirm CLASSPATH setup
+echo "Using CLASSPATH: $CLASSPATH"
+
 # Debug: Print command and raw database input
 echo "Running command: $command"
 echo "Raw database input: $raw_databases"
@@ -64,14 +67,16 @@ for db in "${valid_databases[@]}"; do
   context="${DATABASE_CONTEXTS[$db]}" # Get the context for the database
   echo "Running Liquibase $command for database: $db with context: $context"
 
-  liquibase \
+  # Run Liquibase and capture output inline
+  output=$(liquibase \
       --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true" \
       --changeLogFile=changeset/changelog.xml \
       --contexts="$context" \
       --logLevel=debug \
-      "$command" > 2>&1
+      "$command" 2>&1)
 
-  echo "Liquibase command '$command' for database '$db' executed successfully."
-  echo "Log saved to liquibase_${db}.log"
+  # Print the output directly
+  echo "Liquibase output for database '$db':"
+  echo "$output"
   echo "------------------------------------------------------------"
 done
