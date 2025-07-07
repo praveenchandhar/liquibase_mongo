@@ -5,11 +5,7 @@ MONGO_CONNECTION_BASE="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-
 
 # Define a list of allowed/pre-approved databases
 ALLOWED_DATABASES=(
-  "liquibase_test1"
-  "liquibase_test2"
-  "liquibase_test3"
-  "liquibase_test4"
-  "liquibase_test5"
+  "liquibase_test"
 )
 
 # Check if command and database(s) are provided
