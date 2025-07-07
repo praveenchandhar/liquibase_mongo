@@ -12,8 +12,8 @@ jobs:
 
     steps:
       - name: Post Liquibase Usage Guide
+        uses: actions/github-script@v6
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MESSAGE: |
             🌟🚀 **Liquibase Usage Guide** 🌟
 
@@ -31,11 +31,15 @@ jobs:
             - Validate `changelog.xml` syntax
 
             🎉 Keep rocking database updates! 🚀
-        run: |
-          echo "Posting Liquibase usage guide as a comment on the PR..."
 
-          curl -s -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"body\": \"$MESSAGE\"}" \
-            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+        with:
+          script: |
+            const message = process.env.MESSAGE;
+            const pullRequestNumber = context.payload.pull_request.number;
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pullRequestNumber,
+              body: message
+            });
