@@ -19,4 +19,13 @@
 <changeSet id="1.2" author="praveen" context="liquibase_test">
     <mongodb:createCollection collectionName="sample_collection_1" />
 </changeSet>
+
+<changeSet id="1.3" author="praveen" context="liquibase_test">
+    <mongodb:createCollection collectionName="sample_collection_2" />
+</changeSet>
+
+<changeSet id="1.4" author="praveen" context="sample_mflix">
+    <mongodb:createCollection collectionName="test_collection_1" />
+</changeSet>
+    
 </databaseChangeLog>
