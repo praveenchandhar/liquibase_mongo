@@ -16,7 +16,8 @@ jobs:
         run: |
           echo "Posting Liquibase usage guide as a comment on the PR..."
 
-          MESSAGE="🌟🚀 **Liquibase Usage Guide** 🌟
+          MESSAGE=$(cat << EOF
+🌟🚀 **Liquibase Usage Guide** 🌟
 
 Hello there! 👋 Ready to rock some database changes using Liquibase?
 
@@ -31,7 +32,9 @@ Troubleshooting:
 - Check DB connection strings
 - Validate \`changelog.xml\` syntax
 
-🎉 Keep rocking database updates! 🚀"
+🎉 Keep rocking database updates! 🚀
+EOF
+          )
 
           curl -s -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
