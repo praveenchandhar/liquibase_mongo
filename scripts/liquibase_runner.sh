@@ -22,6 +22,10 @@ raw_databases="$2"
 
 # Setup CLASSPATH for Liquibase dependencies
 CLASSPATH=$(find "$HOME/liquibase-jars" -name "*.jar" | tr '\n' ':')
+export CLASSPATH
+
+# Debug: Confirm CLASSPATH setup
+echo "Using CLASSPATH: $CLASSPATH"
 
 # Debug: Print command and raw database input
 echo "Running command: $command"
@@ -70,7 +74,6 @@ for db in "${valid_databases[@]}"; do
       --password=qggDXaeeyro9NlwNKK1V \
       --changeLogFile=changeset/changelog.xml \
       --contexts="$context" \
-      --logLevel=debug \
       "$command" 2>&1) # Capture output
 
   echo "Liquibase output for database '$db':"
