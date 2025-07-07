@@ -64,14 +64,13 @@ for db in "${valid_databases[@]}"; do
   context="${DATABASE_CONTEXTS[$db]}" # Get the context for the database
   echo "Running Liquibase $command for database: $db with context: $context"
 
+  # Run Liquibase without redirecting the output
   liquibase \
       --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true" \
       --changeLogFile=changeset/changelog.xml \
       --contexts="$context" \
       --logLevel=debug \
-      "$command" 
+      "$command"
 
-  echo "Liquibase command '$command' for database '$db' executed successfully."
-  echo "Log saved to liquibase_${db}.log"
   echo "------------------------------------------------------------"
 done
