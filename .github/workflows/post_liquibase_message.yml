@@ -21,7 +21,7 @@ jobs:
 
             Use the following commands in PR comments:
 
-            ✅ `/liquibase status <db1>, <db2>`  
+            ✅ `/liquibase status <db1>, <db2> -- the output might differ from changeset to changesets & DB to DB. Please clarify with DBA once`  
             ✅ `/liquibase update <db1>, <db2>`  
             ✅ `/liquibase` - Show this guide again 🎉
 
