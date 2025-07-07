@@ -3,80 +3,94 @@
 # MongoDB Atlas connection base (without database)
 MONGO_CONNECTION_BASE="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-mongodb-github.lhhwdqa.mongodb.net"
 
-# Define an associative array for databases and their corresponding contexts
-declare -A DATABASE_CONTEXTS
-DATABASE_CONTEXTS=(
-  ["liquibase_test"]="liquibase_test"
-  ["sample_mflix"]="sample_mflix"
+# Define a list of allowed/pre-approved databases
+ALLOWED_DATABASES=(
+  "liquibase_test"
+  "sample_mflix"
+
 )
 
-# Check if at least one command and one database is provided
+# Check if command and database(s) are provided
 if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 <command> <database1,database2,...>"
+    echo "Usage: $0 <command> <database(s)>"
     exit 1
 fi
 
-# Read the command (status/update) and raw database input
+# Read command (status/update) and raw input database(s)
 command="$1"
 raw_databases="$2"
 
 # Setup CLASSPATH for Liquibase dependencies
 CLASSPATH=$(find "$HOME/liquibase-jars" -name "*.jar" | tr '\n' ':')
-export CLASSPATH
 
-# Debug: Confirm CLASSPATH setup
-echo "Using CLASSPATH: $CLASSPATH"
+# Print classpath for debugging
+echo "Using classpath: $CLASSPATH"
 
-# Debug: Print command and raw database input
+# Step 1: Log Command to Debug
+if [[ "$command" != "status" && "$command" != "update" ]]; then
+  echo "Invalid command: $command."
+  echo "Only 'status' or 'update' commands are allowed."
+  exit 1
+fi
+
 echo "Running command: $command"
 echo "Raw database input: $raw_databases"
 
-# Validate the command
-if [[ "$command" != "status" && "$command" != "update" ]]; then
-    echo "Invalid command: $command. Only 'status' or 'update' are allowed."
-    exit 1
-fi
-
-# Split the raw database input by commas, trim whitespace, and sanitize
+# Step 2: Split Databases by Comma and Trim Each One
 IFS=',' read -r -a database_array <<< "$raw_databases"
 sanitized_databases=()
 for db in "${database_array[@]}"; do
-  db=$(echo "$db" | xargs) # Trim leading/trailing spaces
+  # Trim leading/trailing spaces (if any)
+  db=$(echo "$db" | xargs)
+
+  # Add sanitized databases to the list
   if [[ -n "$db" ]]; then
     sanitized_databases+=("$db")
   fi
 done
 
-# Validate databases against the associative array and prepare valid databases
+# Step 3: Validate Against Allowed Databases
 valid_databases=()
 for db in "${sanitized_databases[@]}"; do
-  if [ -n "${DATABASE_CONTEXTS[$db]}" ]; then
+  if [[ " ${ALLOWED_DATABASES[*]} " =~ " $db " ]]; then
     valid_databases+=("$db")
   else
     echo "Skipping invalid or unknown database: '$db'"
   fi
 done
 
-# Ensure there are valid databases
+# Step 4: Ensure Valid Databases
 if [[ ${#valid_databases[@]} -eq 0 ]]; then
-    echo "No valid databases provided. Exiting."
-    exit 1
+  echo "No valid databases provided. Exiting."
+  exit 1
 fi
 
-# Execute the Liquibase command for each valid database and its corresponding context
+# Step 5: Execute Liquibase Command for Each Valid Database
 for db in "${valid_databases[@]}"; do
-  context="${DATABASE_CONTEXTS[$db]}" # Get the context for the database
-  echo "Running Liquibase $command for database: $db with context: $context"
+  echo "Running Liquibase $command for database: $db"
 
-  output=$(liquibase \
-      --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true" \
-      --username=liquibase_user \
-      --password=qggDXaeeyro9NlwNKK1V \
-      --changeLogFile=changeset/changelog.xml \
-      --contexts="$context" \
-      "$command" 2>&1) # Capture output
+  # Common Liquibase options
+  LIQUIBASE_OPTS=(
+    --url="${MONGO_CONNECTION_BASE}/${db}?retryWrites=true&w=majority&tls=true"
+    --logLevel=debug
+    --changeLogFile=changeset/changelog.xml
+  )
 
-  echo "Liquibase output for database '$db':"
-  echo "$output"
+  # Execute the appropriate Liquibase command
+  case "$command" in
+    status)
+      java -cp "$CLASSPATH" liquibase.integration.commandline.Main "${LIQUIBASE_OPTS[@]}" status
+      ;;
+    update)
+      java -cp "$CLASSPATH" liquibase.integration.commandline.Main "${LIQUIBASE_OPTS[@]}" update
+      ;;
+    *)
+      # This condition shouldn't ever occur due to earlier validation
+      echo "Unknown command: $command"
+      exit 1
+      ;;
+  esac
+
+  echo "Liquibase command '$command' for database '$db' executed successfully."
   echo "------------------------------------------------------------"
 done
