@@ -9,32 +9,30 @@ jobs:
   post-liquibase-guide:
     if: ${{ github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Post Liquibase Usage Guide
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MESSAGE: |
+            🌟🚀 **Liquibase Usage Guide** 🌟
+
+            Hello there! 👋 Ready to rock some database changes using Liquibase?
+
+            Use the following commands in PR comments:
+
+            ✅ `/liquibase status <db1>, <db2>`  
+            ✅ `/liquibase update <db1>, <db2>`  
+            ✅ `/liquibase` - Show this guide again 🎉
+
+            Troubleshooting:
+            - Ensure jars are in `liquibase-jars`
+            - Check DB connection strings
+            - Validate `changelog.xml` syntax
+
+            🎉 Keep rocking database updates! 🚀
         run: |
           echo "Posting Liquibase usage guide as a comment on the PR..."
-
-          MESSAGE=$(cat << EOF
-🌟🚀 **Liquibase Usage Guide** 🌟
-
-Hello there! 👋 Ready to rock some database changes using Liquibase?
-
-Use the following commands in PR comments:
-
-✅ \`/liquibase status <db1>, <db2>\`  
-✅ \`/liquibase update <db1>, <db2>\`  
-✅ \`/liquibase\` - Show this guide again 🎉
-
-Troubleshooting:
-- Ensure jars are in \`liquibase-jars\`
-- Check DB connection strings
-- Validate \`changelog.xml\` syntax
-
-🎉 Keep rocking database updates! 🚀
-EOF
-          )
 
           curl -s -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
