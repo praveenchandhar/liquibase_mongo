@@ -6,10 +6,8 @@ MONGO_CONNECTION_BASE="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-
 # Define a list of allowed/pre-approved databases
 ALLOWED_DATABASES=(
   "liquibase_test"
-  "common_db"
-  "db1"
-  "db2"
-  "db3"
+  "sample_mflix"
+
 )
 
 # Check if command and database(s) are provided
