@@ -9,7 +9,6 @@ jobs:
   post-liquibase-guide:
     if: ${{ github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
-
     steps:
       - name: Post Liquibase Usage Guide
         env:
@@ -17,52 +16,25 @@ jobs:
         run: |
           echo "Posting Liquibase usage guide as a comment on the PR..."
 
-          MESSAGE=$(printf "%s\n" "🌟🚀 **Liquibase Usage Guide** 🌟
+          MESSAGE="🌟🚀 **Liquibase Usage Guide** 🌟
 
-Hello there! 👋 **Ready to rock some database changes using Liquibase?**
+Hello there! 👋 Ready to rock some database changes using Liquibase?
 
-Here's how you can execute Liquibase commands from your **PR comments**:
+Use the following commands in PR comments:
 
----
+✅ \`/liquibase status <db1>, <db2>\`  
+✅ \`/liquibase update <db1>, <db2>\`  
+✅ \`/liquibase\` - Show this guide again 🎉
 
-### ⚡ **Available Liquibase Commands:**
-✅ \`/liquibase status <db1>, <db2>\` - Check the status of changesets for specified databases.  
-✅ \`/liquibase update <db1>, <db2>\` - Apply pending changesets for specified databases.  
-✅ \`/liquibase\` - Display this detailed guide 🎉.
+Troubleshooting:
+- Ensure jars are in \`liquibase-jars\`
+- Check DB connection strings
+- Validate \`changelog.xml\` syntax
 
----
+🎉 Keep rocking database updates! 🚀"
 
-### 🛠️ **How to Use Liquibase Commands 🚀**
-
-**1️⃣ Check the status of changesets:**  
-Type the following in your PR comment:  
-\`\`\`plaintext
-/liquibase status liquibase_test, sample_mflix
-\`\`\`  
-**Description**: This will display the status of applied and pending changesets for the specified databases.
-
----
-
-**2️⃣ Apply changesets:**  
-Type the following in your PR comment:  
-\`\`\`plaintext
-/liquibase update liquibase_test, sample_mflix
-\`\`\`  
-**Description**: This will apply any pending changesets to the specified databases.
-
----
-
-### 👩‍🔧 **Troubleshooting Tips:** 💡  
-💡 Ensure jar files are available in the \`liquibase-jars\` directory.  
-💡 Verify database connection strings and credentials.  
-💡 Check your \`changelog.xml\` for proper syntax or context-specific filters.
-
----
-
-🎉 **Keep rocking database updates!** 🚀")
-
-          curl -X POST \
+          curl -s -X POST \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{\"body\": \"$MESSAGE\"}" \
-            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
