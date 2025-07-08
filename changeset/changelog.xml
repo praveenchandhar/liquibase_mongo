@@ -36,4 +36,8 @@
 <changeSet id="1.6" author="praveen" context="sample_mflix">
     <mongodb:dropCollection collectionName="dummy_collection" />
 </changeSet>
+
+<changeSet id="1.7" author="praveen" context="sample_mflix">
+    <mongodb:createCollection collectionName="sequoia_demo" />
+</changeSet>
 </databaseChangeLog>
