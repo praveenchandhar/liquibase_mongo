@@ -40,4 +40,8 @@
 <changeSet id="1.7" author="praveen" context="sample_mflix">
     <mongodb:createCollection collectionName="sequoia_demo" />
 </changeSet>
+
+<changeSet id="1.8" author="praveen" context="liquibase_test">
+    <mongodb:createCollection collectionName="demo_collection" />
+</changeSet>
 </databaseChangeLog>
