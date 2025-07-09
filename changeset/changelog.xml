@@ -44,4 +44,9 @@
 <changeSet id="1.8" author="praveen" context="liquibase_test">
     <mongodb:createCollection collectionName="demo_collection" />
 </changeSet>
+
+<changeSet id="1.9" author="praveen" context="liquibase_test">
+    <mongodb:createCollection collectionName="demo_collection_bypassing" />
+</changeSet>
+    
 </databaseChangeLog>
