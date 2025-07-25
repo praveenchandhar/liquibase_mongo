@@ -1,15 +1,16 @@
 // context: liquibase_test
 // This file contains changes for the liquibase_test database
 
-db.dropCollection("Liquibase_Demo");
+db.Liquibase_Demo.drop();
 
-db.dropCollection("demo_collection");
+db.demo_collection.drop();
 
-db.dropCollection("liquibase_demo");
+db.liquibase_demo.drop();
 
-db.dropCollection("sample_collection");
+db.sample_collection.drop();
 
-db.dropCollection("sample_collection_1");
+db.sample_collection_1.drop();
 
-db.dropCollection("sample_collection_2");
+db.sample_collection_2.drop();
+
 
