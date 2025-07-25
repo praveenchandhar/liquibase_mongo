@@ -1,0 +1,41 @@
+name: Generate Changesets from JS Files
+
+on:
+  push:
+    paths:
+      - db_queries/**
+
+jobs:
+  generate-changesets:
+    name: Generate Changesets Automatically
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # Step 2: Set Up Python Environment
+      - name: Install Python Dependencies
+        run: |
+          sudo apt update
+          sudo apt install python3 python3-pip -y
+          pip3 install PyGithub
+
+      # Step 3: Run Python Script
+      - name: Run Changeset Generator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/v4.py --version version_X --js_file db_queries/version_X.js --author ${{ github.actor }} --repo "${{ github.repository }}" --branch "auto_changeset_${{ github.sha }}"
+
+      # Step 4: Create Pull Request
+      - name: Create Pull Request for XML Files
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: "Auto-generated changeset for version_X.js"
+          branch: auto_changeset-${{ github.sha }}
+          title: "[Auto-Generated] XML Changeset for version_X.js"
+          body: |
+            - Generated XML file based on db_queries/version_X.js
+            - Review and update as needed.
