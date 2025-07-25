@@ -1,0 +1,228 @@
+name: Liquibase Commands from PR Comments
+
+on:
+  issue_comment:
+    types:
+      - created
+
+jobs:
+  liquibase_task:
+    if: |
+      github.event.issue.pull_request &&
+      (
+        startsWith(github.event.comment.body, '/liquibase status') ||
+        startsWith(github.event.comment.body, '/liquibase update')
+      )
+    name: Run Liquibase Tasks
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout Repository Code
+      - name: Checkout Repository Code
+        uses: actions/checkout@v3
+
+      # Step 2: Install Liquibase CLI (Version 4.31.1)
+      - name: Install Liquibase CLI
+        run: |
+          echo "Installing Liquibase CLI version 4.31.1..."
+          wget --quiet https://github.com/liquibase/liquibase/releases/download/v4.31.1/liquibase-4.31.1.zip
+          unzip liquibase-4.31.1.zip
+          chmod +x liquibase
+          mv liquibase /usr/local/bin/liquibase
+          echo "✅ Liquibase CLI has been successfully installed!"
+
+      # Step 3: Prepare Workspace for Dependencies
+      - name: Prepare Workspace for JAR Files
+        run: mkdir -p $HOME/liquibase-jars
+
+      # Step 4: Restore Cached Dependencies
+      - name: Restore Dependencies from Cache
+        id: restore_jars_cache
+        uses: actions/cache@v3
+        with:
+          path: $HOME/liquibase-jars
+          key: liquibase-jars-v15
+          restore-keys: |
+            liquibase-jars-
+
+      # Step 5: Download Missing Dependencies (If Cache Misses)
+      - name: Download Liquibase Dependencies
+        if: steps.restore_jars_cache.outputs.cache-hit != 'true'
+        run: |
+          echo "Downloading dependencies for Liquibase 4.31.1..."
+          JARS_DIR=$HOME/liquibase-jars
+
+          # Clean up old downloads
+          rm -f $JARS_DIR/commons-lang3.jar
+
+          # MongoDB JARs
+          wget --quiet -O $JARS_DIR/mongodb-driver-core.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-core/5.5.0/mongodb-driver-core-5.5.0.jar
+          wget --quiet -O $JARS_DIR/mongodb-driver-sync.jar https://repo1.maven.org/maven2/org/mongodb/mongodb-driver-sync/5.5.0/mongodb-driver-sync-5.5.0.jar
+          wget --quiet -O $JARS_DIR/bson.jar https://repo1.maven.org/maven2/org/mongodb/bson/5.5.0/bson-5.5.0.jar
+
+          # Liquibase Core
+          wget --quiet -O $JARS_DIR/liquibase-core.jar https://repo1.maven.org/maven2/org/liquibase/liquibase-core/4.31.1/liquibase-core-4.31.1.jar
+
+          # Liquibase MongoDB Extension
+          wget --quiet -O $JARS_DIR/liquibase-mongodb.jar https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-mongodb/4.31.1/liquibase-mongodb-4.31.1.jar
+
+          # Additional Dependencies
+          wget --quiet -O $JARS_DIR/commons-io.jar https://repo1.maven.org/maven2/commons-io/commons-io/2.13.0/commons-io-2.13.0.jar
+          wget --quiet -O $JARS_DIR/commons-lang3.jar https://repo1.maven.org/maven2/org/apache/commons/commons-lang3/3.13.0/commons-lang3-3.13.0.jar
+          wget --quiet -O $JARS_DIR/snakeyaml.jar https://repo1.maven.org/maven2/org/yaml/snakeyaml/1.33/snakeyaml-1.33.jar
+
+          # Jackson Dependencies
+          wget --quiet -O $JARS_DIR/jackson-annotations.jar https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-annotations/2.14.2/jackson-annotations-2.14.2.jar
+          wget --quiet -O $JARS_DIR/jackson-core.jar https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-core/2.14.2/jackson-core-2.14.2.jar
+          wget --quiet -O $JARS_DIR/jackson-databind.jar https://repo1.maven.org/maven2/com/fasterxml/jackson/core/jackson-databind/2.14.2/jackson-databind-2.14.2.jar
+
+          # OpenCSV Dependency
+          wget --quiet -O $JARS_DIR/opencsv.jar https://repo1.maven.org/maven2/com/opencsv/opencsv/5.7.1/opencsv-5.7.1.jar
+
+          # SLF4J for logging
+          wget --quiet -O $JARS_DIR/slf4j-api.jar https://repo1.maven.org/maven2/org/slf4j/slf4j-api/1.7.36/slf4j-api-1.7.36.jar
+          wget --quiet -O $JARS_DIR/slf4j-simple.jar https://repo1.maven.org/maven2/org/slf4j/slf4j-simple/1.7.36/slf4j-simple-1.7.36.jar
+
+          echo "✅ All dependencies downloaded to $JARS_DIR."
+
+      # Step 6: Cache Dependencies
+      - name: Cache Dependencies for Faster Reuse
+        if: steps.restore_jars_cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v3
+        with:
+          path: $HOME/liquibase-jars
+          key: liquibase-jars-v15
+
+      # Step 7: Parse PR Comment for Command, Database, and Optional Version
+      - name: Parse PR Comment for Command and Database
+        run: |
+          COMMENT_BODY="${{ github.event.comment.body }}"
+          echo "📝 Parsing PR comment: $COMMENT_BODY"
+
+          # Enhanced regex to capture optional version parameter
+          if [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+status[[:space:]]+([^[:space:]]+)([[:space:]]+([^[:space:]]+))?.*$ ]]; then
+              echo "COMMAND=status" >> $GITHUB_ENV
+              DATABASE="${BASH_REMATCH[1]}"
+              VERSION="${BASH_REMATCH[3]}"
+              echo "DATABASE=$DATABASE" >> $GITHUB_ENV
+              echo "VERSION=$VERSION" >> $GITHUB_ENV
+          elif [[ "$COMMENT_BODY" =~ ^/liquibase[[:space:]]+update[[:space:]]+([^[:space:]]+)([[:space:]]+([^[:space:]]+))?.*$ ]]; then
+              echo "COMMAND=update" >> $GITHUB_ENV
+              DATABASE="${BASH_REMATCH[1]}"
+              VERSION="${BASH_REMATCH[3]}"
+              echo "DATABASE=$DATABASE" >> $GITHUB_ENV
+              echo "VERSION=$VERSION" >> $GITHUB_ENV
+          else
+              echo "❌ Invalid command format."
+              echo ""
+              echo "📋 Valid formats:"
+              echo "   /liquibase status <database>           # Uses latest changeset"
+              echo "   /liquibase update <database>           # Uses latest changeset"
+              echo "   /liquibase status <database> <version> # Uses specific version"
+              echo "   /liquibase update <database> <version> # Uses specific version"
+              echo ""
+              echo "📝 Examples:"
+              echo "   /liquibase update liquibase_test"
+              echo "   /liquibase update liquibase_test version_4"
+              echo "   /liquibase status sample_mflix"
+              echo "   /liquibase status sample_mflix version_3"
+              exit 1
+          fi
+
+          echo "✅ Parsed successfully:"
+          echo "   Command: $COMMAND"
+          echo "   Database: $DATABASE"
+          if [ -n "$VERSION" ]; then
+              echo "   Version: $VERSION"
+          else
+              echo "   Version: (latest)"
+          fi
+
+      # Step 8: Debug Available Changesets
+      - name: List Available Changesets
+        run: |
+          echo "📁 Checking available changesets..."
+          if [ -d "json_changesets" ]; then
+              echo "✅ json_changesets directory exists"
+              echo "📋 Available changeset files:"
+              ls -la json_changesets/*.xml 2>/dev/null || echo "No XML files found"
+              echo ""
+              echo "📊 File count: $(find json_changesets -name "*.xml" -type f | wc -l)"
+          else
+              echo "❌ json_changesets directory does not exist"
+              echo "💡 This is expected if no changesets have been generated yet"
+          fi
+
+      # Step 9: Execute Liquibase Runner Script
+      - name: Execute Liquibase Runner Script
+        id: liquibase_script
+        run: |
+          echo "🚀 Running Liquibase runner script..."
+          chmod +x scripts/liquibase_runner.sh
+          
+          if [ -n "$VERSION" ]; then
+            echo "🎯 Using specific version: $VERSION"
+            ./scripts/liquibase_runner.sh "${COMMAND}" "${DATABASE}" "${VERSION}" | tee runner_output_raw.txt
+          else
+            echo "⏰ Using latest version"
+            ./scripts/liquibase_runner.sh "${COMMAND}" "${DATABASE}" | tee runner_output_raw.txt
+          fi
+
+      # Step 10: Clean and Format Output
+      - name: Clean and Format Output
+        run: |
+          echo "🧹 Cleaning and formatting output..."
+          
+          # Create formatted output
+          echo "## 🚀 Liquibase Execution Results" > runner_output_final.txt
+          echo "" >> runner_output_final.txt
+          echo "**Command:** \`$COMMAND\`" >> runner_output_final.txt
+          echo "**Database:** \`$DATABASE\`" >> runner_output_final.txt
+          if [ -n "$VERSION" ]; then
+              echo "**Version:** \`$VERSION\`" >> runner_output_final.txt
+          else
+              echo "**Version:** Latest" >> runner_output_final.txt
+          fi
+          echo "" >> runner_output_final.txt
+          
+          # Check if execution was successful
+          if grep -q "🎉 Liquibase runner script completed successfully!" runner_output_raw.txt; then
+              echo "**Status:** ✅ SUCCESS" >> runner_output_final.txt
+          else
+              echo "**Status:** ❌ FAILED" >> runner_output_final.txt
+          fi
+          
+          echo "" >> runner_output_final.txt
+          echo "### 📋 Detailed Output" >> runner_output_final.txt
+          echo '```' >> runner_output_final.txt
+          
+          # Clean the output (remove excessive logging)
+          grep -v "^\[.*\] FINE" runner_output_raw.txt | \
+          grep -v "Loaded liquibase" | \
+          grep -v "##.*##" | \
+          sed 's/^[[:space:]]*//' >> runner_output_final.txt
+          
+          echo '```' >> runner_output_final.txt
+          
+          echo ""
+          echo "📄 Formatted output ready:"
+          cat runner_output_final.txt
+
+      # Step 11: Post Results to PR Comment
+      - name: Comment Results on PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "💬 Posting results to PR..."
+          
+          # Add execution metadata
+          echo "" >> runner_output_final.txt
+          echo "---" >> runner_output_final.txt
+          echo "*🤖 Executed by GitHub Actions at $(date)*" >> runner_output_final.txt
+          echo "*⚡ Workflow: [View Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*" >> runner_output_final.txt
+          
+          # Post the comment
+          COMMENT=$(cat runner_output_final.txt)
+          gh pr comment ${{ github.event.issue.number }} --body "$COMMENT"
+          
+          echo "✅ Comment posted successfully!"
