@@ -56,16 +56,32 @@ def extract_mongodb_operations(content):
     content_no_comments = re.sub(r'/\*.*?\*/', '', content_no_comments, flags=re.DOTALL)
     
     patterns = {
+        # Insert operations
         'insertMany': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.insertMany\s*\(\s*(\[.*?\])\s*\)\s*;?',
         'insertOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.insertOne\s*\(\s*(\{.*?\})\s*\)\s*;?',
+        'insert': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.insert\s*\(\s*(\{.*?\}|\[.*?\])\s*\)\s*;?',
+        
+        # Update operations  
         'updateOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.updateOne\s*\(\s*(\{.*?\})\s*,\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
         'updateMany': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.updateMany\s*\(\s*(\{.*?\})\s*,\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
+        'replaceOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.replaceOne\s*\(\s*(\{.*?\})\s*,\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
+        
+        # Delete operations
         'deleteOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.deleteOne\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
         'deleteMany': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.deleteMany\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
+        'remove': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.remove\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
+        
+        # Index operations
         'createIndex': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.createIndex\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
         'dropIndex': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.dropIndex\s*\(\s*(["\'][^"\']*["\']|\{.*?\})\s*\)\s*;?',
+        
+        # Collection operations
         'createCollection': r'db\.createCollection\s*\(\s*["\']([^"\']+)["\']\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
-        'dropCollection': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.drop\s*\(\s*\)\s*;?|db\.([^.]+)\.drop\s*\(\s*\)\s*;?',
+        
+        # ✅ ENHANCED DROP COLLECTION PATTERNS ✅
+        'dropCollection_direct': r'db\.dropCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*;?',  # db.dropCollection("name")
+        'dropCollection_getCollection': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.drop\s*\(\s*\)\s*;?',  # db.getCollection("name").drop()
+        'dropCollection_dot': r'db\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\.drop\s*\(\s*\)\s*;?',  # db.collection.drop()
     }
     
     for operation_type, pattern in patterns.items():
@@ -78,13 +94,14 @@ def extract_mongodb_operations(content):
                 'raw_match': match.group(0)
             }
             
-            if operation_type in ['insertMany', 'insertOne']:
+            # Handle different parameter structures based on operation type
+            if operation_type in ['insertMany', 'insertOne', 'insert']:
                 operation['documents'] = groups[1]
-            elif operation_type in ['updateOne', 'updateMany']:
+            elif operation_type in ['updateOne', 'updateMany', 'replaceOne']:
                 operation['filter'] = groups[1]
                 operation['update'] = groups[2]
                 operation['options'] = groups[3] if len(groups) > 3 and groups[3] else None
-            elif operation_type in ['deleteOne', 'deleteMany']:
+            elif operation_type in ['deleteOne', 'deleteMany', 'remove']:
                 operation['filter'] = groups[1]
                 operation['options'] = groups[2] if len(groups) > 2 and groups[2] else None
             elif operation_type == 'createIndex':
@@ -94,11 +111,13 @@ def extract_mongodb_operations(content):
                 operation['index_spec'] = groups[1]
             elif operation_type == 'createCollection':
                 operation['options'] = groups[1] if len(groups) > 1 and groups[1] else None
-            elif operation_type == 'dropCollection':
-                operation['collection'] = groups[0] if groups[0] else groups[1]
+            elif operation_type in ['dropCollection_direct', 'dropCollection_getCollection', 'dropCollection_dot']:
+                # Normalize all drop collection operations to 'dropCollection'
+                operation['type'] = 'dropCollection'
+                operation['collection'] = groups[0]
             
             operations.append(operation)
-            print(f"DEBUG: Found {operation_type} operation on collection '{operation['collection']}'")
+            print(f"DEBUG: Found {operation['type']} operation on collection '{operation['collection']}'")
     
     print(f"DEBUG: Total operations found: {len(operations)}")
     return operations
@@ -116,6 +135,14 @@ def extract_version_number(version_string):
     if match:
         return match.group(1)
     return "1"  # Default fallback
+
+def extract_index_name(options_str):
+    """Extract index name from options string."""
+    if not options_str:
+        return None
+    # Look for name field in options
+    name_match = re.search(r'["\']?name["\']?\s*:\s*["\']([^"\']+)["\']', options_str)
+    return name_match.group(1) if name_match else None
 
 def generate_liquibase_xml(version, operations, author_name, context):
     """Generate Liquibase XML with decimal changeset IDs like 4.1, 4.2, 4.3."""
@@ -151,7 +178,7 @@ def generate_liquibase_xml(version, operations, author_name, context):
             if len(operations) == 1:
                 changeset_id = base_version_num
             else:
-                changeset_id = f"{base_version_num}.{i+1}"  # e.g., "4.1", "4.2", "4.3"
+                changeset_id = f"{base_version_num}.{i+1}"  # e.g., "6.1", "6.2", "6.3"
             
             xml_lines.append(f'    <changeSet id="{changeset_id}" author="{author_name}" context="{context}">')
             
@@ -161,7 +188,7 @@ def generate_liquibase_xml(version, operations, author_name, context):
                     
                 elif op_type == 'createIndex':
                     index_key = clean_json_for_xml(operation['index_key'])
-                    index_name = f"{collection}_index_{i+1}"
+                    index_name = extract_index_name(operation.get('options', '')) or f"{collection}_index_{i+1}"
                     
                     xml_lines.append('        <mongodb:runCommand>')
                     xml_lines.append('            <mongodb:command><![CDATA[')
@@ -185,7 +212,7 @@ def generate_liquibase_xml(version, operations, author_name, context):
                     xml_lines.append('            ]]></mongodb:document>')
                     xml_lines.append('        </mongodb:insertOne>')
                     
-                elif op_type == 'insertMany':
+                elif op_type in ['insertMany', 'insert']:
                     docs_content = clean_json_for_xml(operation['documents'])
                     if not docs_content.strip().startswith('['):
                         docs_content = f"[{docs_content}]"
@@ -216,7 +243,22 @@ def generate_liquibase_xml(version, operations, author_name, context):
                     xml_lines.append('            ]]></mongodb:command>')
                     xml_lines.append('        </mongodb:runCommand>')
                     
-                elif op_type in ['deleteOne', 'deleteMany']:
+                elif op_type == 'replaceOne':
+                    filter_json = clean_json_for_xml(operation['filter'])
+                    replacement_json = clean_json_for_xml(operation['update'])
+                    
+                    xml_lines.append('        <mongodb:runCommand>')
+                    xml_lines.append('            <mongodb:command><![CDATA[')
+                    xml_lines.append('            {')
+                    xml_lines.append(f'                "findAndModify": "{collection}",')
+                    xml_lines.append(f'                "query": {filter_json},')
+                    xml_lines.append(f'                "update": {replacement_json},')
+                    xml_lines.append('                "new": true')
+                    xml_lines.append('            }')
+                    xml_lines.append('            ]]></mongodb:command>')
+                    xml_lines.append('        </mongodb:runCommand>')
+                    
+                elif op_type in ['deleteOne', 'deleteMany', 'remove']:
                     filter_json = clean_json_for_xml(operation['filter'])
                     limit = 1 if op_type == "deleteOne" else 0
                     
@@ -247,6 +289,7 @@ def generate_liquibase_xml(version, operations, author_name, context):
                         xml_lines.append('        </mongodb:dropIndex>')
                     
                 elif op_type == 'dropCollection':
+                    # ✅ HANDLE DROP COLLECTION OPERATIONS ✅
                     xml_lines.append(f'        <mongodb:dropCollection collectionName="{collection}" />')
                     
             except Exception as e:
