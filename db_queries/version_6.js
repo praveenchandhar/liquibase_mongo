@@ -12,3 +12,4 @@ db.dropCollection("sample_collection");
 db.dropCollection("sample_collection_1");
 
 db.dropCollection("sample_collection_2");
+
