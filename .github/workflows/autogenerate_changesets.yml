@@ -20,51 +20,148 @@ jobs:
         with:
           fetch-depth: 0  # Fetch full history for proper diff analysis
 
-      # Step 2: Detect Merged .js File
+      # Step 2: Debug PR Information
+      - name: Debug PR Information
+        run: |
+          echo "=== PR Debug Information ==="
+          echo "PR Number: ${{ github.event.pull_request.number }}"
+          echo "PR Title: ${{ github.event.pull_request.title }}"
+          echo "Base Branch: ${{ github.event.pull_request.base.ref }}"
+          echo "Head Branch: ${{ github.event.pull_request.head.ref }}"
+          echo "Merged: ${{ github.event.pull_request.merged }}"
+          echo "Merge Commit SHA: ${{ github.event.pull_request.merge_commit_sha }}"
+          echo "Head SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "Base SHA: ${{ github.event.pull_request.base.sha }}"
+
+      # Step 3: Detect Merged .js File with Enhanced Debugging
       - name: Get Merged File Name
         id: get_filename
         run: |
-          echo "Detecting merged .js file"
+          echo "=== File Detection Debug ==="
+          echo "Detecting merged .js files..."
+          
           git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.ref }}
           MERGE_COMMIT_SHA=${{ github.event.pull_request.merge_commit_sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          
           echo "Merge commit SHA: $MERGE_COMMIT_SHA"
+          echo "Head SHA: $HEAD_SHA"
+          echo "Base SHA: $BASE_SHA"
           
-          # Get files changed in the merge commit and filter for .js files in db_queries
-          FILES=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA | { grep 'db_queries/.*\.js' || true; })
+          echo ""
+          echo "=== All files in merge commit ==="
+          ALL_FILES=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA || echo "No files found in merge commit")
+          echo "$ALL_FILES"
           
+          echo ""
+          echo "=== Files changed between base and head ==="
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA..$HEAD_SHA || echo "No files found in diff")
+          echo "$CHANGED_FILES"
+          
+          echo ""
+          echo "=== Checking db_queries directory ==="
+          if [ -d "db_queries" ]; then
+            echo "db_queries directory exists"
+            ls -la db_queries/ || echo "Directory exists but is empty or inaccessible"
+          else
+            echo "db_queries directory does not exist"
+          fi
+          
+          echo ""
+          echo "=== Looking for JS files in db_queries ==="
+          # Try multiple methods to find JS files
+          
+          # Method 1: From merge commit
+          FILES_METHOD1=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA | { grep 'db_queries/.*\.js' || true; })
+          echo "Method 1 (merge commit): '$FILES_METHOD1'"
+          
+          # Method 2: From diff between base and head
+          FILES_METHOD2=$(git diff --name-only $BASE_SHA..$HEAD_SHA | { grep 'db_queries/.*\.js' || true; })
+          echo "Method 2 (base..head diff): '$FILES_METHOD2'"
+          
+          # Method 3: Check if any JS files exist in current db_queries
+          if [ -d "db_queries" ]; then
+            FILES_METHOD3=$(find db_queries -name "*.js" 2>/dev/null || true)
+            echo "Method 3 (current files): '$FILES_METHOD3'"
+          else
+            FILES_METHOD3=""
+            echo "Method 3 (current files): 'db_queries directory not found'"
+          fi
+          
+          # Use the first method that finds files
+          FILES=""
+          if [ -n "$FILES_METHOD1" ]; then
+            FILES="$FILES_METHOD1"
+            echo "Using Method 1 result"
+          elif [ -n "$FILES_METHOD2" ]; then
+            FILES="$FILES_METHOD2"
+            echo "Using Method 2 result"
+          elif [ -n "$FILES_METHOD3" ]; then
+            FILES="$FILES_METHOD3"
+            echo "Using Method 3 result"
+          fi
+          
+          echo ""
+          echo "=== Final Result ==="
           if [ -z "$FILES" ]; then
-            echo "No .js files found in db_queries directory"
+            echo "❌ No .js files found in db_queries directory"
             echo "js_file=" >> $GITHUB_ENV
             echo "has_js_file=false" >> $GITHUB_ENV
-            exit 0
           else
-            # If multiple files, take the first one (or modify logic as needed)
+            # If multiple files, take the first one
             FILE=$(echo "$FILES" | head -n 1)
-            echo "File detected: $FILE"
+            echo "✅ File detected: $FILE"
             echo "js_file=$FILE" >> $GITHUB_ENV
             echo "has_js_file=true" >> $GITHUB_ENV
+            
+            # Verify the file exists
+            if [ -f "$FILE" ]; then
+              echo "✅ File exists and is readable"
+              echo "File size: $(wc -c < "$FILE") bytes"
+              echo "First few lines:"
+              head -5 "$FILE" || echo "Could not read file content"
+            else
+              echo "❌ File does not exist at path: $FILE"
+              echo "has_js_file=false" >> $GITHUB_ENV
+            fi
           fi
 
-      # Step 3: Create necessary directories
+      # Step 4: Create necessary directories
       - name: Create output directory
         if: env.has_js_file == 'true'
         run: |
+          echo "Creating json_changesets directory..."
           mkdir -p json_changesets
+          echo "Directory created successfully"
 
-      # Step 4: Set Up Python Environment (only if we have a JS file)
+      # Step 5: Set Up Python Environment (only if we have a JS file)
       - name: Install Python Dependencies
         if: env.has_js_file == 'true'
         run: |
+          echo "Installing Python dependencies..."
           sudo apt update
           sudo apt install python3 python3-pip -y
           pip3 install PyGithub
+          echo "Python dependencies installed successfully"
 
-      # Step 5: Run Python Script (only if we have a JS file)
+      # Step 6: Run Python Script (only if we have a JS file)
       - name: Run Changeset Generator
         if: env.has_js_file == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 scripts/v4.py --version $(basename ${{ env.js_file }} .js) --js_file ${{ env.js_file }} --author ${{ github.actor }} --repo "${{ github.repository }}" --branch "auto_changeset_${{ github.sha }}" --token "${{ secrets.GITHUB_TOKEN }}"
-
-      # Note: Removed the Create Pull Request step since the Python script handles PR creation
+          echo "Running changeset generator..."
+          echo "JS File: ${{ env.js_file }}"
+          echo "Version: $(basename ${{ env.js_file }} .js)"
+          echo "Author: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: auto_changeset_${{ github.sha }}"
+          
+          python3 scripts/v4.py \
+            --version $(basename ${{ env.js_file }} .js) \
+            --js_file ${{ env.js_file }} \
+            --author ${{ github.actor }} \
+            --repo "${{ github.repository }}" \
+            --branch "auto_changeset_${{ github.sha }}" \
+            --token "${{ secrets.GITHUB_TOKEN }}"
