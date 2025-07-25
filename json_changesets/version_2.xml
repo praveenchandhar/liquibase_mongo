@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:mongodb="http://www.liquibase.org/xml/ns/mongodb"><changeSet id="version_2" author="praveenchandhar" /></databaseChangeLog>
