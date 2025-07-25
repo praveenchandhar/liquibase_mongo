@@ -30,12 +30,13 @@ jobs:
           echo "Merge commit SHA: $MERGE_COMMIT_SHA"
           
           # Get files changed in the merge commit and filter for .js files in db_queries
-          FILES=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA | grep 'db_queries/.*\.js' || true)
+          FILES=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA | { grep 'db_queries/.*\.js' || true; })
           
           if [ -z "$FILES" ]; then
             echo "No .js files found in db_queries directory"
             echo "js_file=" >> $GITHUB_ENV
             echo "has_js_file=false" >> $GITHUB_ENV
+            exit 0
           else
             # If multiple files, take the first one (or modify logic as needed)
             FILE=$(echo "$FILES" | head -n 1)
@@ -44,7 +45,13 @@ jobs:
             echo "has_js_file=true" >> $GITHUB_ENV
           fi
 
-      # Step 3: Set Up Python Environment (only if we have a JS file)
+      # Step 3: Create necessary directories
+      - name: Create output directory
+        if: env.has_js_file == 'true'
+        run: |
+          mkdir -p json_changesets
+
+      # Step 4: Set Up Python Environment (only if we have a JS file)
       - name: Install Python Dependencies
         if: env.has_js_file == 'true'
         run: |
@@ -52,7 +59,7 @@ jobs:
           sudo apt install python3 python3-pip -y
           pip3 install PyGithub
 
-      # Step 4: Run Python Script (only if we have a JS file)
+      # Step 5: Run Python Script (only if we have a JS file)
       - name: Run Changeset Generator
         if: env.has_js_file == 'true'
         env:
@@ -60,14 +67,4 @@ jobs:
         run: |
           python3 scripts/v4.py --version $(basename ${{ env.js_file }} .js) --js_file ${{ env.js_file }} --author ${{ github.actor }} --repo "${{ github.repository }}" --branch "auto_changeset_${{ github.sha }}" --token "${{ secrets.GITHUB_TOKEN }}"
 
-      # Step 5: Create Pull Request for XML Files (only if we have a JS file)
-      - name: Create Pull Request for XML Files
-        if: env.has_js_file == 'true'
-        uses: peter-evans/create-pull-request@v5
-        with:
-          commit-message: "Auto-generated changeset for ${{ env.js_file }}"
-          branch: auto_changeset-${{ github.sha }}
-          title: "[Auto-Generated] XML Changeset for ${{ env.js_file }}"
-          body: |
-            - Generated XML file based on ${{ env.js_file }}
-            - Review and update as needed.
+      # Note: Removed the Create Pull Request step since the Python script handles PR creation
