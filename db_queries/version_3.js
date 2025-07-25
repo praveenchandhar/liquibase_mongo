@@ -1,3 +1,5 @@
+
+
 // Insert operation
 db.getCollection("users").insertMany([
     { name: "John Doe", email: "john@example.com", age: 30 },
