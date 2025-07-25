@@ -12,3 +12,4 @@ db.getCollection("users").updateOne(
 
 // Delete operation
 db.getCollection("users").deleteMany({ age: { $lt: 18 } });
+
