@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:mongodb="http://www.liquibase.org/xml/ns/mongodb">
+    <changeSet id="version_4_1" author="praveenchandhar" context="liquibase_test">
+        <mongodb:insertMany collectionName="users">
+            <mongodb:documents>
+        [
+    { name: &quot;John Doe&quot;, email: &quot;john@example.com&quot;, age: 30 },
+    { name: &quot;Jane Smith&quot;, email: &quot;jane@example.com&quot;, age: 25 }
+]
+        </mongodb:documents>
+        </mongodb:insertMany>
+    </changeSet>
+    <changeSet id="version_4_2" author="praveenchandhar" context="liquibase_test">
+        <mongodb:runCommand>
+            <mongodb:command>
+        {
+    &quot;update&quot;: &quot;users&quot;,
+    &quot;updates&quot;: [
+        {
+            &quot;q&quot;: { email: &quot;john@example.com&quot; },
+            &quot;u&quot;: { $set: { age: 31, lastUpdated: new Date() } },
+            &quot;multi&quot;: false
+        }
+    ]
+}
+        </mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="version_4_3" author="praveenchandhar" context="liquibase_test">
+        <mongodb:runCommand>
+            <mongodb:command>
+        {
+    &quot;delete&quot;: &quot;users&quot;,
+    &quot;deletes&quot;: [
+        {
+            &quot;q&quot;: { age: { $lt: 18 } },
+            &quot;limit&quot;: 0
+        }
+    ]
+}
+        </mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+</databaseChangeLog>
