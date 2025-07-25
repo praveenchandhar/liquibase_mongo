@@ -1,0 +1,83 @@
+{
+    "databaseChangeLog": [
+        {
+            "changeSet": {
+                "id": "5.1",
+                "author": "praveen",
+                "changes": [
+                    {
+                        "createCollection": {
+                            "collectionName": "test_1"
+                        }
+                    },
+                    {
+                        "createCollection": {
+                            "collectionName": "test_2"
+                        }
+                    },
+                    {
+                        "createCollection": {
+                            "collectionName": "test_3"
+                        }
+                    },
+                    {
+                        "createCollection": {
+                            "collectionName": "test_4"
+                        }
+                    },
+                    {
+                        "createCollection": {
+                            "collectionName": "test_5"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "changeSet": {
+                "id": "5.2",
+                "author": "praveen",
+                "changes": [
+                    {
+                        "createCollection": {
+                            "collectionName": "test_collection"
+                        }
+                    },
+                    {
+                        "createIndex": {
+                            "collectionName": "test_collection",
+                            "index": {
+                                "fields": {
+                                    "field1": 1
+                                },
+                                "options": {
+                                    "unique": true
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "insertOne": {
+                            "document": {
+                                "field1": "value1",
+                                "field2": "value2"
+                            }
+                        }
+                    },
+                    {
+                        "updateOne": {
+                            "filter": {
+                                "field1": "value1"
+                            },
+                            "update": {
+                                "$set": {
+                                    "field2": "updated_value"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]
+}
