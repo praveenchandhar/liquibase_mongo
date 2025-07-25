@@ -23,7 +23,10 @@ jobs:
         id: get_filename
         run: |
           echo "Detecting merged .js file"
-          FILE=$(git diff --name-only ${{ github.event.pull_request.base.repo.default_branch }} ${{ github.event.pull_request.head.sha }} | grep 'db_queries/.*\.js')
+          git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.ref }}
+          MERGE_COMMIT_SHA=${{ github.event.pull_request.merge_commit_sha }}
+          echo "Merge commit SHA: $MERGE_COMMIT_SHA"
+          FILE=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA | grep 'db_queries/.*\.js')
           echo "File detected: $FILE"
           echo "js_file=$FILE" >> $GITHUB_ENV
 
