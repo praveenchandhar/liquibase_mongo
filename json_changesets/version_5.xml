@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:mongodb="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.5.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <changeSet id="5.1" author="praveenchandhar" context="liquibase_test">
+        <mongodb:insertMany collectionName="users">
+            <mongodb:documents><![CDATA[
+            [
+    { name: "John Doe", email: "john@example.com", age: 30 },
+    { name: "Jane Smith", email: "jane@example.com", age: 25 }
+]
+            ]]></mongodb:documents>
+        </mongodb:insertMany>
+    </changeSet>
+    <changeSet id="5.2" author="praveenchandhar" context="liquibase_test">
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "update": "users",
+                "updates": [
+                    {
+                        "q": { email: "john@example.com" },
+                        "u": { $set: { age: 31, lastUpdated: new Date() } },
+                        "multi": false
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="5.3" author="praveenchandhar" context="liquibase_test">
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "delete": "users",
+                "deletes": [
+                    {
+                        "q": { age: { $lt: 18 } },
+                        "limit": 0
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="5.4" author="praveenchandhar" context="liquibase_test">
+        <mongodb:createCollection collectionName="working" />
+    </changeSet>
+</databaseChangeLog>
