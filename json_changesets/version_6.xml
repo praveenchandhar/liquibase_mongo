@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:mongodb="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.5.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <changeSet id="6.1" author="praveenchandhar" context="liquibase_test">
+        <mongodb:dropCollection collectionName="Liquibase_Demo" />
+    </changeSet>
+    <changeSet id="6.2" author="praveenchandhar" context="liquibase_test">
+        <mongodb:dropCollection collectionName="demo_collection" />
+    </changeSet>
+    <changeSet id="6.3" author="praveenchandhar" context="liquibase_test">
+        <mongodb:dropCollection collectionName="liquibase_demo" />
+    </changeSet>
+    <changeSet id="6.4" author="praveenchandhar" context="liquibase_test">
+        <mongodb:dropCollection collectionName="sample_collection" />
+    </changeSet>
+    <changeSet id="6.5" author="praveenchandhar" context="liquibase_test">
+        <mongodb:dropCollection collectionName="sample_collection_1" />
+    </changeSet>
+    <changeSet id="6.6" author="praveenchandhar" context="liquibase_test">
+        <mongodb:dropCollection collectionName="sample_collection_2" />
+    </changeSet>
+</databaseChangeLog>
