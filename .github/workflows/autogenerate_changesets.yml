@@ -51,33 +51,33 @@ jobs:
           
           echo ""
           echo "=== All files in merge commit ==="
-          ALL_FILES=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA || echo "No files found in merge commit")
+          ALL_FILES=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA 2>/dev/null || echo "No files found in merge commit")
           echo "$ALL_FILES"
           
           echo ""
           echo "=== Files changed between base and head ==="
-          CHANGED_FILES=$(git diff --name-only $BASE_SHA..$HEAD_SHA || echo "No files found in diff")
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA..$HEAD_SHA 2>/dev/null || echo "No files found in diff")
           echo "$CHANGED_FILES"
           
           echo ""
           echo "=== Checking db_queries directory ==="
           if [ -d "db_queries" ]; then
-            echo "db_queries directory exists"
-            ls -la db_queries/ || echo "Directory exists but is empty or inaccessible"
+            echo "✅ db_queries directory exists"
+            echo "Contents:"
+            ls -la db_queries/ 2>/dev/null || echo "Directory exists but is empty or inaccessible"
           else
-            echo "db_queries directory does not exist"
+            echo "❌ db_queries directory does not exist"
           fi
           
           echo ""
           echo "=== Looking for JS files in db_queries ==="
-          # Try multiple methods to find JS files
           
           # Method 1: From merge commit
-          FILES_METHOD1=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA | { grep 'db_queries/.*\.js' || true; })
+          FILES_METHOD1=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA 2>/dev/null | { grep 'db_queries/.*\.js' || true; })
           echo "Method 1 (merge commit): '$FILES_METHOD1'"
           
           # Method 2: From diff between base and head
-          FILES_METHOD2=$(git diff --name-only $BASE_SHA..$HEAD_SHA | { grep 'db_queries/.*\.js' || true; })
+          FILES_METHOD2=$(git diff --name-only $BASE_SHA..$HEAD_SHA 2>/dev/null | { grep 'db_queries/.*\.js' || true; })
           echo "Method 2 (base..head diff): '$FILES_METHOD2'"
           
           # Method 3: Check if any JS files exist in current db_queries
@@ -93,13 +93,13 @@ jobs:
           FILES=""
           if [ -n "$FILES_METHOD1" ]; then
             FILES="$FILES_METHOD1"
-            echo "Using Method 1 result"
+            echo "✅ Using Method 1 result"
           elif [ -n "$FILES_METHOD2" ]; then
             FILES="$FILES_METHOD2"
-            echo "Using Method 2 result"
+            echo "✅ Using Method 2 result"
           elif [ -n "$FILES_METHOD3" ]; then
             FILES="$FILES_METHOD3"
-            echo "Using Method 3 result"
+            echo "✅ Using Method 3 result"
           fi
           
           echo ""
@@ -115,27 +115,51 @@ jobs:
             echo "js_file=$FILE" >> $GITHUB_ENV
             echo "has_js_file=true" >> $GITHUB_ENV
             
-            # Verify the file exists
+            # Verify the file exists and show preview
             if [ -f "$FILE" ]; then
               echo "✅ File exists and is readable"
               echo "File size: $(wc -c < "$FILE") bytes"
-              echo "First few lines:"
-              head -5 "$FILE" || echo "Could not read file content"
+              echo ""
+              echo "=== File Content Preview ==="
+              head -10 "$FILE" 2>/dev/null || echo "Could not read file content"
+              echo "=== End Preview ==="
             else
               echo "❌ File does not exist at path: $FILE"
               echo "has_js_file=false" >> $GITHUB_ENV
             fi
           fi
 
-      # Step 4: Create necessary directories
+      # Step 4: Ensure scripts directory exists
+      - name: Verify scripts directory
+        if: env.has_js_file == 'true'
+        run: |
+          echo "Checking scripts directory..."
+          if [ ! -d "scripts" ]; then
+            echo "❌ scripts directory does not exist!"
+            echo "Creating scripts directory..."
+            mkdir -p scripts
+          else
+            echo "✅ scripts directory exists"
+          fi
+          
+          if [ ! -f "scripts/v4.py" ]; then
+            echo "❌ scripts/v4.py does not exist!"
+            echo "Please ensure the Python script is in the scripts/ directory"
+            exit 1
+          else
+            echo "✅ scripts/v4.py found"
+            echo "Script size: $(wc -c < scripts/v4.py) bytes"
+          fi
+
+      # Step 5: Create necessary directories
       - name: Create output directory
         if: env.has_js_file == 'true'
         run: |
           echo "Creating json_changesets directory..."
           mkdir -p json_changesets
-          echo "Directory created successfully"
+          echo "✅ Directory created successfully"
 
-      # Step 5: Set Up Python Environment (only if we have a JS file)
+      # Step 6: Set Up Python Environment (only if we have a JS file)
       - name: Install Python Dependencies
         if: env.has_js_file == 'true'
         run: |
@@ -143,21 +167,27 @@ jobs:
           sudo apt update
           sudo apt install python3 python3-pip -y
           pip3 install PyGithub
-          echo "Python dependencies installed successfully"
+          echo "✅ Python dependencies installed successfully"
+          
+          # Verify Python and pip versions
+          echo "Python version: $(python3 --version)"
+          echo "Pip version: $(pip3 --version)"
 
-      # Step 6: Run Python Script (only if we have a JS file)
+      # Step 7: Run Python Script (only if we have a JS file)
       - name: Run Changeset Generator
         if: env.has_js_file == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Running changeset generator..."
+          echo "=== Running Changeset Generator ==="
           echo "JS File: ${{ env.js_file }}"
           echo "Version: $(basename ${{ env.js_file }} .js)"
           echo "Author: ${{ github.actor }}"
           echo "Repository: ${{ github.repository }}"
           echo "Branch: auto_changeset_${{ github.sha }}"
+          echo ""
           
+          echo "Executing Python script..."
           python3 scripts/v4.py \
             --version $(basename ${{ env.js_file }} .js) \
             --js_file ${{ env.js_file }} \
@@ -165,3 +195,57 @@ jobs:
             --repo "${{ github.repository }}" \
             --branch "auto_changeset_${{ github.sha }}" \
             --token "${{ secrets.GITHUB_TOKEN }}"
+          
+          echo "✅ Python script execution completed"
+
+      # Step 8: Verify Generated XML
+      - name: Verify Generated XML
+        if: env.has_js_file == 'true'
+        run: |
+          echo "=== Verifying Generated XML ==="
+          VERSION=$(basename ${{ env.js_file }} .js)
+          XML_FILE="json_changesets/${VERSION}.xml"
+          
+          if [ -f "$XML_FILE" ]; then
+            echo "✅ XML file generated successfully: $XML_FILE"
+            echo "File size: $(wc -c < "$XML_FILE") bytes"
+            echo ""
+            echo "=== Generated XML Content ==="
+            cat "$XML_FILE"
+            echo ""
+            echo "=== End XML Content ==="
+            
+            # Basic XML validation
+            if python3 -c "import xml.etree.ElementTree as ET; ET.parse('$XML_FILE')" 2>/dev/null; then
+              echo "✅ XML is well-formed"
+            else
+              echo "❌ XML validation failed"
+              exit 1
+            fi
+          else
+            echo "❌ XML file was not generated: $XML_FILE"
+            echo "Checking json_changesets directory contents:"
+            ls -la json_changesets/ 2>/dev/null || echo "json_changesets directory does not exist"
+            exit 1
+          fi
+
+      # Step 9: Summary
+      - name: Workflow Summary
+        if: always()
+        run: |
+          echo "=== Workflow Summary ==="
+          if [ "${{ env.has_js_file }}" = "true" ]; then
+            echo "✅ JS file detected: ${{ env.js_file }}"
+            VERSION=$(basename ${{ env.js_file }} .js)
+            XML_FILE="json_changesets/${VERSION}.xml"
+            if [ -f "$XML_FILE" ]; then
+              echo "✅ XML changeset generated: $XML_FILE"
+              echo "✅ Pull request should be created automatically"
+            else
+              echo "❌ XML generation failed"
+            fi
+          else
+            echo "ℹ️  No JS files found in db_queries directory"
+            echo "ℹ️  This is normal if the merged PR didn't contain JS files"
+          fi
+          echo "=== End Summary ==="
