@@ -1,45 +1,48 @@
-name: Post Liquibase Usage Guide on PR Merge
+# 
+# name: Post Liquibase Usage Guide on PR Merge
 
-on:
-  pull_request:
-    types:
-      - closed
+# on:
+#   pull_request:
+#     types:
+#       - closed
 
-jobs:
-  post-liquibase-guide:
-    if: ${{ github.event.pull_request.merged == true }}
-    runs-on: ubuntu-latest
+# jobs:
+#   post-liquibase-guide:
+#     if: ${{ github.event.pull_request.merged == true }}
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: Post Liquibase Usage Guide
-        uses: actions/github-script@v6
-        env:
-          MESSAGE: |
-            🌟🚀 **Liquibase Usage Guide** 🌟
+#     steps:
+#       - name: Post Liquibase Usage Guide
+#         uses: actions/github-script@v6
+#         env:
+#           MESSAGE: |
+#             🌟🚀 **Liquibase Usage Guide** 🌟
 
-            Hello there! 👋 Ready to rock some database changes using Liquibase?
+#             Hello there! 👋 Ready to rock some database changes using Liquibase?
 
-            Use the following commands in PR comments:
+#             Use the following commands in PR comments:
 
-            ✅ `/liquibase status <db1>, <db2> -- the output might differ from changeset to changesets & DB to DB. Please clarify with DBA once`  
-            ✅ `/liquibase update <db1>, <db2>`  
-            ✅ `/liquibase` - Show this guide again 🎉
+#             ✅ `/liquibase status <db1>, <db2> -- the output might differ from changeset to changesets & DB to DB. Please clarify with DBA once`  
+#             ✅ `/liquibase update <db1>, <db2>`  
+#             ✅ `/liquibase` - Show this guide again 🎉
 
-            Troubleshooting:
-            - Ensure jars are in `liquibase-jars`
-            - Check DB connection strings
-            - Validate `changelog.xml` syntax
+#             Troubleshooting:
+#             - Ensure jars are in `liquibase-jars`
+#             - Check DB connection strings
+#             - Validate `changelog.xml` syntax
 
-            🎉 Keep rocking database updates! 🚀
+#             🎉 Keep rocking database updates! 🚀
 
-        with:
-          script: |
-            const message = process.env.MESSAGE;
-            const pullRequestNumber = context.payload.pull_request.number;
+#         with:
+#           script: |
+#             const message = process.env.MESSAGE;
+#             const pullRequestNumber = context.payload.pull_request.number;
 
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pullRequestNumber,
-              body: message
-            });
+#             github.rest.issues.createComment({
+#               owner: context.repo.owner,
+#               repo: context.repo.repo,
+#               issue_number: pullRequestNumber,
+#               body: message
+#             });
+
+# 
