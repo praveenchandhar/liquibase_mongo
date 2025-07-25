@@ -27,9 +27,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python3 scripts/v4.py --version version_X --js_file db_queries/version_X.js --author ${{ github.actor }} --repo "${{ github.repository }}" --branch "auto_changeset_${{ github.sha }}"
+          python3 scripts/v4.py --version version_X --js_file db_queries/version_X.js --author ${{ github.actor }} --repo "${{ github.repository }}" --branch "auto_changeset_${{ github.sha }}" --token "${{ secrets.GITHUB_TOKEN }}"
 
-      # Step 4: Create Pull Request
+      # Step 4: Create Pull Request for XML Files
       - name: Create Pull Request for XML Files
         uses: peter-evans/create-pull-request@v5
         with:
