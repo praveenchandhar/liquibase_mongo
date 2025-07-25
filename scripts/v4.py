@@ -1,7 +1,5 @@
 import os
 import re
-import xml.etree.ElementTree as ET
-import xml.dom.minidom
 import argparse
 from github import Github
 
@@ -20,7 +18,6 @@ def parse_js_file(js_file_path):
 
 def extract_context_from_content(content):
     """Extract context from the top of the JS file."""
-    # Look for context declarations in the first 10 lines
     lines = content.split('\n')[:10]
     first_lines = '\n'.join(lines)
     
@@ -29,14 +26,13 @@ def extract_context_from_content(content):
     print(first_lines)
     print("=" * 30)
     
-    # Various patterns to match context declarations
     context_patterns = [
-        r'//\s*@?context\s*:?\s*([a-zA-Z0-9_]+)',  # // context: liquibase_test or // @context liquibase_test
-        r'/\*\s*@?context\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',  # /* context: liquibase_test */
-        r'//\s*@?Context\s*:?\s*([a-zA-Z0-9_]+)',  # // Context: liquibase_test (case insensitive)
-        r'/\*\s*@?Context\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',  # /* Context: liquibase_test */
-        r'//\s*DATABASE\s*:?\s*([a-zA-Z0-9_]+)',  # // DATABASE: liquibase_test
-        r'/\*\s*DATABASE\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',  # /* DATABASE: liquibase_test */
+        r'//\s*@?context\s*:?\s*([a-zA-Z0-9_]+)',
+        r'/\*\s*@?context\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',
+        r'//\s*@?Context\s*:?\s*([a-zA-Z0-9_]+)',
+        r'/\*\s*@?Context\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',
+        r'//\s*DATABASE\s*:?\s*([a-zA-Z0-9_]+)',
+        r'/\*\s*DATABASE\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',
     ]
     
     for pattern in context_patterns:
@@ -47,40 +43,27 @@ def extract_context_from_content(content):
             return context
     
     print("DEBUG: No context found in file, using default 'dev'")
-    return "dev"  # Default fallback
+    return "dev"
 
 def extract_mongodb_operations(content):
-    """Extract MongoDB operations from JS content - Enhanced version."""
+    """Extract MongoDB operations from JS content."""
     operations = []
     
     print("DEBUG: Looking for MongoDB operations...")
     
-    # Remove comments first (but preserve the content for context extraction)
+    # Remove comments first
     content_no_comments = re.sub(r'//.*?$', '', content, flags=re.MULTILINE)
     content_no_comments = re.sub(r'/\*.*?\*/', '', content_no_comments, flags=re.DOTALL)
     
-    # Define patterns for different operations
     patterns = {
-        # Insert operations
         'insertMany': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.insertMany\s*\(\s*(\[.*?\])\s*\)\s*;?',
         'insertOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.insertOne\s*\(\s*(\{.*?\})\s*\)\s*;?',
-        'insert': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.insert\s*\(\s*(\{.*?\}|\[.*?\])\s*\)\s*;?',
-        
-        # Update operations  
         'updateOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.updateOne\s*\(\s*(\{.*?\})\s*,\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
         'updateMany': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.updateMany\s*\(\s*(\{.*?\})\s*,\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
-        'replaceOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.replaceOne\s*\(\s*(\{.*?\})\s*,\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
-        
-        # Delete operations
         'deleteOne': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.deleteOne\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
         'deleteMany': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.deleteMany\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
-        'remove': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.remove\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
-        
-        # Index operations
         'createIndex': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.createIndex\s*\(\s*(\{.*?\})\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
         'dropIndex': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.dropIndex\s*\(\s*(["\'][^"\']*["\']|\{.*?\})\s*\)\s*;?',
-        
-        # Collection operations
         'createCollection': r'db\.createCollection\s*\(\s*["\']([^"\']+)["\']\s*(?:,\s*(\{.*?\}))?\s*\)\s*;?',
         'dropCollection': r'db\.getCollection\s*\(\s*["\']([^"\']+)["\']\s*\)\s*\.drop\s*\(\s*\)\s*;?|db\.([^.]+)\.drop\s*\(\s*\)\s*;?',
     }
@@ -95,14 +78,13 @@ def extract_mongodb_operations(content):
                 'raw_match': match.group(0)
             }
             
-            # Handle different parameter structures
-            if operation_type in ['insertMany', 'insertOne', 'insert']:
+            if operation_type in ['insertMany', 'insertOne']:
                 operation['documents'] = groups[1]
-            elif operation_type in ['updateOne', 'updateMany', 'replaceOne']:
+            elif operation_type in ['updateOne', 'updateMany']:
                 operation['filter'] = groups[1]
                 operation['update'] = groups[2]
                 operation['options'] = groups[3] if len(groups) > 3 and groups[3] else None
-            elif operation_type in ['deleteOne', 'deleteMany', 'remove']:
+            elif operation_type in ['deleteOne', 'deleteMany']:
                 operation['filter'] = groups[1]
                 operation['options'] = groups[2] if len(groups) > 2 and groups[2] else None
             elif operation_type == 'createIndex':
@@ -113,7 +95,6 @@ def extract_mongodb_operations(content):
             elif operation_type == 'createCollection':
                 operation['options'] = groups[1] if len(groups) > 1 and groups[1] else None
             elif operation_type == 'dropCollection':
-                # Handle both db.collection.drop() and db.getCollection("name").drop()
                 operation['collection'] = groups[0] if groups[0] else groups[1]
             
             operations.append(operation)
@@ -126,187 +107,163 @@ def clean_json_for_xml(json_str):
     """Clean and format JSON for XML inclusion."""
     if not json_str:
         return "{}"
-    # Remove extra whitespace but preserve structure
     return json_str.strip()
 
-def extract_index_name(options_str):
-    """Extract index name from options string."""
-    if not options_str:
-        return None
-    # Look for name field in options
-    name_match = re.search(r'["\']?name["\']?\s*:\s*["\']([^"\']+)["\']', options_str)
-    return name_match.group(1) if name_match else None
+def extract_version_number(version_string):
+    """Extract numeric part from version string."""
+    # Look for numbers in the version string
+    match = re.search(r'(\d+)', version_string)
+    if match:
+        return match.group(1)
+    return "1"  # Default fallback
 
 def generate_liquibase_xml(version, operations, author_name, context):
-    """Generate Liquibase XML from MongoDB operations following reference structure."""
-    root = ET.Element("databaseChangeLog")
-    root.set("xmlns", "http://www.liquibase.org/xml/ns/dbchangelog")
-    root.set("xmlns:mongodb", "http://www.liquibase.org/xml/ns/mongodb")
+    """Generate Liquibase XML with decimal changeset IDs like 4.1, 4.2, 4.3."""
+    
+    # Extract base number from version
+    base_version_num = extract_version_number(version)
+    
+    # Build XML manually to control CDATA sections and avoid HTML encoding
+    xml_lines = []
+    xml_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
+    xml_lines.append('<databaseChangeLog')
+    xml_lines.append('    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"')
+    xml_lines.append('    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"')
+    xml_lines.append('    xmlns:mongodb="http://www.liquibase.org/xml/ns/dbchangelog-ext"')
+    xml_lines.append('    xsi:schemaLocation="')
+    xml_lines.append('        http://www.liquibase.org/xml/ns/dbchangelog')
+    xml_lines.append('        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.5.xsd')
+    xml_lines.append('        http://www.liquibase.org/xml/ns/dbchangelog-ext')
+    xml_lines.append('        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">')
 
     if not operations:
         # Create a single changeset with comment
-        changeset = ET.SubElement(root, "changeSet")
-        changeset.set("id", version)
-        changeset.set("author", author_name)
-        changeset.set("context", context)
-        comment = ET.Comment(" No MongoDB operations found in the JS file ")
-        changeset.append(comment)
-        return root
+        xml_lines.append(f'    <changeSet id="{base_version_num}" author="{author_name}" context="{context}">')
+        xml_lines.append('        <!-- No MongoDB operations found in the JS file -->')
+        xml_lines.append('    </changeSet>')
+    else:
+        # Create separate changeSet for each operation with decimal IDs
+        for i, operation in enumerate(operations):
+            op_type = operation['type']
+            collection = operation['collection']
+            
+            # Use decimal notation for changeset IDs
+            if len(operations) == 1:
+                changeset_id = base_version_num
+            else:
+                changeset_id = f"{base_version_num}.{i+1}"  # e.g., "4.1", "4.2", "4.3"
+            
+            xml_lines.append(f'    <changeSet id="{changeset_id}" author="{author_name}" context="{context}">')
+            
+            try:
+                if op_type == 'createCollection':
+                    xml_lines.append(f'        <mongodb:createCollection collectionName="{collection}" />')
+                    
+                elif op_type == 'createIndex':
+                    index_key = clean_json_for_xml(operation['index_key'])
+                    index_name = f"{collection}_index_{i+1}"
+                    
+                    xml_lines.append('        <mongodb:runCommand>')
+                    xml_lines.append('            <mongodb:command><![CDATA[')
+                    xml_lines.append('            {')
+                    xml_lines.append(f'                "createIndexes": "{collection}",')
+                    xml_lines.append('                "indexes": [')
+                    xml_lines.append('                    {')
+                    xml_lines.append(f'                        "key": {index_key},')
+                    xml_lines.append(f'                        "name": "{index_name}"')
+                    xml_lines.append('                    }')
+                    xml_lines.append('                ]')
+                    xml_lines.append('            }')
+                    xml_lines.append('            ]]></mongodb:command>')
+                    xml_lines.append('        </mongodb:runCommand>')
+                    
+                elif op_type == 'insertOne':
+                    doc_content = clean_json_for_xml(operation['documents'])
+                    xml_lines.append(f'        <mongodb:insertOne collectionName="{collection}">')
+                    xml_lines.append('            <mongodb:document><![CDATA[')
+                    xml_lines.append(f'            {doc_content}')
+                    xml_lines.append('            ]]></mongodb:document>')
+                    xml_lines.append('        </mongodb:insertOne>')
+                    
+                elif op_type == 'insertMany':
+                    docs_content = clean_json_for_xml(operation['documents'])
+                    if not docs_content.strip().startswith('['):
+                        docs_content = f"[{docs_content}]"
+                    
+                    xml_lines.append(f'        <mongodb:insertMany collectionName="{collection}">')
+                    xml_lines.append('            <mongodb:documents><![CDATA[')
+                    xml_lines.append(f'            {docs_content}')
+                    xml_lines.append('            ]]></mongodb:documents>')
+                    xml_lines.append('        </mongodb:insertMany>')
+                    
+                elif op_type in ['updateOne', 'updateMany']:
+                    filter_json = clean_json_for_xml(operation['filter'])
+                    update_json = clean_json_for_xml(operation['update'])
+                    multi = "true" if op_type == "updateMany" else "false"
+                    
+                    xml_lines.append('        <mongodb:runCommand>')
+                    xml_lines.append('            <mongodb:command><![CDATA[')
+                    xml_lines.append('            {')
+                    xml_lines.append(f'                "update": "{collection}",')
+                    xml_lines.append('                "updates": [')
+                    xml_lines.append('                    {')
+                    xml_lines.append(f'                        "q": {filter_json},')
+                    xml_lines.append(f'                        "u": {update_json},')
+                    xml_lines.append(f'                        "multi": {multi}')
+                    xml_lines.append('                    }')
+                    xml_lines.append('                ]')
+                    xml_lines.append('            }')
+                    xml_lines.append('            ]]></mongodb:command>')
+                    xml_lines.append('        </mongodb:runCommand>')
+                    
+                elif op_type in ['deleteOne', 'deleteMany']:
+                    filter_json = clean_json_for_xml(operation['filter'])
+                    limit = 1 if op_type == "deleteOne" else 0
+                    
+                    xml_lines.append('        <mongodb:runCommand>')
+                    xml_lines.append('            <mongodb:command><![CDATA[')
+                    xml_lines.append('            {')
+                    xml_lines.append(f'                "delete": "{collection}",')
+                    xml_lines.append('                "deletes": [')
+                    xml_lines.append('                    {')
+                    xml_lines.append(f'                        "q": {filter_json},')
+                    xml_lines.append(f'                        "limit": {limit}')
+                    xml_lines.append('                    }')
+                    xml_lines.append('                ]')
+                    xml_lines.append('            }')
+                    xml_lines.append('            ]]></mongodb:command>')
+                    xml_lines.append('        </mongodb:runCommand>')
+                    
+                elif op_type == 'dropIndex':
+                    index_spec = operation['index_spec']
+                    if index_spec.startswith('"') or index_spec.startswith("'"):
+                        index_name = index_spec.strip('"\'')
+                        xml_lines.append(f'        <mongodb:dropIndex collectionName="{collection}" indexName="{index_name}" />')
+                    else:
+                        xml_lines.append(f'        <mongodb:dropIndex collectionName="{collection}">')
+                        xml_lines.append('            <mongodb:keys><![CDATA[')
+                        xml_lines.append(f'            {clean_json_for_xml(index_spec)}')
+                        xml_lines.append('            ]]></mongodb:keys>')
+                        xml_lines.append('        </mongodb:dropIndex>')
+                    
+                elif op_type == 'dropCollection':
+                    xml_lines.append(f'        <mongodb:dropCollection collectionName="{collection}" />')
+                    
+            except Exception as e:
+                print(f"DEBUG: Error processing operation {i+1}: {str(e)}")
+                xml_lines.append(f'        <!-- Failed to process {op_type} operation: {str(e)} -->')
+            
+            xml_lines.append('    </changeSet>')
 
-    # Create separate changeSet for each operation
-    for i, operation in enumerate(operations):
-        op_type = operation['type']
-        collection = operation['collection']
-        changeset_id = f"{version}_{i+1}" if len(operations) > 1 else version
-        
-        changeset = ET.SubElement(root, "changeSet")
-        changeset.set("id", changeset_id)
-        changeset.set("author", author_name)
-        changeset.set("context", context)
-        
-        try:
-            if op_type == 'createCollection':
-                create_collection = ET.SubElement(changeset, "mongodb:createCollection")
-                create_collection.set("collectionName", collection)
-                
-            elif op_type == 'createIndex':
-                run_command = ET.SubElement(changeset, "mongodb:runCommand")
-                command = ET.SubElement(run_command, "mongodb:command")
-                
-                index_key = clean_json_for_xml(operation['index_key'])
-                index_name = extract_index_name(operation.get('options', '')) or f"{collection}_index_{i+1}"
-                
-                command_json = f'''{{
-    "createIndexes": "{collection}",
-    "indexes": [
-        {{
-            "key": {index_key},
-            "name": "{index_name}"
-        }}
-    ]
-}}'''
-                command.text = f"\n        {command_json}\n        "
-                
-            elif op_type == 'insertOne':
-                insert_one = ET.SubElement(changeset, "mongodb:insertOne")
-                insert_one.set("collectionName", collection)
-                document = ET.SubElement(insert_one, "mongodb:document")
-                
-                doc_content = clean_json_for_xml(operation['documents'])
-                document.text = f"\n        {doc_content}\n        "
-                
-            elif op_type in ['insertMany', 'insert']:
-                insert_many = ET.SubElement(changeset, "mongodb:insertMany")
-                insert_many.set("collectionName", collection)
-                documents = ET.SubElement(insert_many, "mongodb:documents")
-                
-                docs_content = clean_json_for_xml(operation['documents'])
-                # Ensure it's an array
-                if not docs_content.strip().startswith('['):
-                    docs_content = f"[{docs_content}]"
-                documents.text = f"\n        {docs_content}\n        "
-                
-            elif op_type in ['updateOne', 'updateMany']:
-                run_command = ET.SubElement(changeset, "mongodb:runCommand")
-                command = ET.SubElement(run_command, "mongodb:command")
-                
-                filter_json = clean_json_for_xml(operation['filter'])
-                update_json = clean_json_for_xml(operation['update'])
-                multi = "true" if op_type == "updateMany" else "false"
-                
-                update_payload = f'''{{
-    "update": "{collection}",
-    "updates": [
-        {{
-            "q": {filter_json},
-            "u": {update_json},
-            "multi": {multi}
-        }}
-    ]
-}}'''
-                command.text = f"\n        {update_payload}\n        "
-                
-            elif op_type == 'replaceOne':
-                run_command = ET.SubElement(changeset, "mongodb:runCommand")
-                command = ET.SubElement(run_command, "mongodb:command")
-                
-                filter_json = clean_json_for_xml(operation['filter'])
-                replacement_json = clean_json_for_xml(operation['update'])
-                
-                replace_payload = f'''{{
-    "findAndModify": "{collection}",
-    "query": {filter_json},
-    "update": {replacement_json},
-    "new": true
-}}'''
-                command.text = f"\n        {replace_payload}\n        "
-                
-            elif op_type in ['deleteOne', 'deleteMany', 'remove']:
-                run_command = ET.SubElement(changeset, "mongodb:runCommand")
-                command = ET.SubElement(run_command, "mongodb:command")
-                
-                filter_json = clean_json_for_xml(operation['filter'])
-                limit = 1 if op_type == "deleteOne" else 0
-                
-                delete_payload = f'''{{
-    "delete": "{collection}",
-    "deletes": [
-        {{
-            "q": {filter_json},
-            "limit": {limit}
-        }}
-    ]
-}}'''
-                command.text = f"\n        {delete_payload}\n        "
-                
-            elif op_type == 'dropIndex':
-                drop_index = ET.SubElement(changeset, "mongodb:dropIndex")
-                drop_index.set("collectionName", collection)
-                
-                index_spec = operation['index_spec']
-                # Extract index name if it's a string
-                if index_spec.startswith('"') or index_spec.startswith("'"):
-                    index_name = index_spec.strip('"\'')
-                    drop_index.set("indexName", index_name)
-                else:
-                    # It's a key specification
-                    keys = ET.SubElement(drop_index, "mongodb:keys")
-                    keys.text = f"\n        {clean_json_for_xml(index_spec)}\n        "
-                
-            elif op_type == 'dropCollection':
-                drop_collection = ET.SubElement(changeset, "mongodb:dropCollection")
-                drop_collection.set("collectionName", collection)
-                
-        except Exception as e:
-            print(f"DEBUG: Error processing operation {i+1}: {str(e)}")
-            error_comment = ET.Comment(f" Failed to process {op_type} operation: {str(e)} ")
-            changeset.append(error_comment)
+    xml_lines.append('</databaseChangeLog>')
+    return '\n'.join(xml_lines)
 
-    return root
-
-def prettify_xml(elem):
-    """Return a pretty-printed XML string for the Element."""
-    rough_string = ET.tostring(elem, encoding='unicode')
-    reparsed = xml.dom.minidom.parseString(rough_string)
-    return reparsed.toprettyxml(indent="    ", encoding=None)
-
-def write_to_file(xml_tree, output_file_path):
-    """Write XML tree to a file with proper formatting."""
+def write_to_file(xml_content, output_file_path):
+    """Write XML content to a file."""
     os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
     
-    pretty_xml = prettify_xml(xml_tree)
-    
-    # Remove extra empty lines that minidom adds
-    lines = pretty_xml.split('\n')
-    cleaned_lines = []
-    for line in lines:
-        if line.strip():
-            cleaned_lines.append(line)
-    
-    pretty_xml = '\n'.join(cleaned_lines) + '\n'
-    
     with open(output_file_path, "w", encoding="utf-8") as file:
-        file.write(pretty_xml)
+        file.write(xml_content)
 
 def create_pull_request(repo_name, branch_name, changeset_file_path, js_file_path, github_token):
     """Create a GitHub Pull Request with the newly generated XML file."""
@@ -400,11 +357,11 @@ if __name__ == "__main__":
         operations = extract_mongodb_operations(content)
         
         print(f"Generating XML for version: {version}")
-        xml_tree = generate_liquibase_xml(version, operations, author, context)
+        xml_content = generate_liquibase_xml(version, operations, author, context)
         
         changeset_file_path = f"json_changesets/{version}.xml"
         print(f"Writing XML to: {changeset_file_path}")
-        write_to_file(xml_tree, changeset_file_path)
+        write_to_file(xml_content, changeset_file_path)
         
         print(f"Creating pull request...")
         pr = create_pull_request(repo_name, branch_name, changeset_file_path, js_file_path, github_token)
