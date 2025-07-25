@@ -18,13 +18,44 @@ def parse_js_file(js_file_path):
         print("=" * 50)
         return content
 
+def extract_context_from_content(content):
+    """Extract context from the top of the JS file."""
+    # Look for context declarations in the first 10 lines
+    lines = content.split('\n')[:10]
+    first_lines = '\n'.join(lines)
+    
+    print("DEBUG: Looking for context in first 10 lines:")
+    print("=" * 30)
+    print(first_lines)
+    print("=" * 30)
+    
+    # Various patterns to match context declarations
+    context_patterns = [
+        r'//\s*@?context\s*:?\s*([a-zA-Z0-9_]+)',  # // context: liquibase_test or // @context liquibase_test
+        r'/\*\s*@?context\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',  # /* context: liquibase_test */
+        r'//\s*@?Context\s*:?\s*([a-zA-Z0-9_]+)',  # // Context: liquibase_test (case insensitive)
+        r'/\*\s*@?Context\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',  # /* Context: liquibase_test */
+        r'//\s*DATABASE\s*:?\s*([a-zA-Z0-9_]+)',  # // DATABASE: liquibase_test
+        r'/\*\s*DATABASE\s*:?\s*([a-zA-Z0-9_]+)\s*\*/',  # /* DATABASE: liquibase_test */
+    ]
+    
+    for pattern in context_patterns:
+        match = re.search(pattern, first_lines, re.IGNORECASE)
+        if match:
+            context = match.group(1)
+            print(f"DEBUG: Found context: '{context}' using pattern: {pattern}")
+            return context
+    
+    print("DEBUG: No context found in file, using default 'dev'")
+    return "dev"  # Default fallback
+
 def extract_mongodb_operations(content):
     """Extract MongoDB operations from JS content - Enhanced version."""
     operations = []
     
     print("DEBUG: Looking for MongoDB operations...")
     
-    # Remove comments first
+    # Remove comments first (but preserve the content for context extraction)
     content_no_comments = re.sub(r'//.*?$', '', content, flags=re.MULTILINE)
     content_no_comments = re.sub(r'/\*.*?\*/', '', content_no_comments, flags=re.DOTALL)
     
@@ -106,7 +137,7 @@ def extract_index_name(options_str):
     name_match = re.search(r'["\']?name["\']?\s*:\s*["\']([^"\']+)["\']', options_str)
     return name_match.group(1) if name_match else None
 
-def generate_liquibase_xml(version, operations, author_name, context="dev"):
+def generate_liquibase_xml(version, operations, author_name, context):
     """Generate Liquibase XML from MongoDB operations following reference structure."""
     root = ET.Element("databaseChangeLog")
     root.set("xmlns", "http://www.liquibase.org/xml/ns/dbchangelog")
@@ -348,7 +379,6 @@ if __name__ == "__main__":
     parser.add_argument("--repo", required=True, help="GitHub repository (e.g., 'owner/repo').")
     parser.add_argument("--branch", required=True, help="Target branch for the PR.")
     parser.add_argument("--token", required=True, help="GitHub token for authentication.")
-    parser.add_argument("--context", default="dev", help="Context for the changeset (default: dev).")
     args = parser.parse_args()
 
     try:
@@ -358,10 +388,13 @@ if __name__ == "__main__":
         repo_name = args.repo
         branch_name = args.branch
         github_token = args.token
-        context = args.context
 
         print(f"Processing JS file: {js_file_path}")
         content = parse_js_file(js_file_path)
+        
+        print(f"Extracting context from file...")
+        context = extract_context_from_content(content)
+        print(f"Using context: '{context}'")
         
         print(f"Extracting MongoDB operations...")
         operations = extract_mongodb_operations(content)
