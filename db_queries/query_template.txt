@@ -1,0 +1,75 @@
+// @context: dev
+// @author: developer-name
+// @description: Brief description of what this changeset does
+// @version: 1.0
+
+// ============================================
+// TEMPLATE FOR LIQUIBASE-COMPATIBLE QUERIES
+// ============================================
+
+// ✅ CORRECT: Use ISODate() for dates
+db.getCollection("collection_name").insertMany([
+{
+    "field1": "value1",
+    "field2": 123,
+    "field3": true,
+    "dateField": ISODate("2023-01-01T00:00:00.000Z"),  // ✅ USE ISODate()
+    "arrayField": ["item1", "item2"],
+    "objectField": {
+        "nestedField": "value"
+    }
+}
+]);
+
+// ❌ AVOID: Do not use new Date() with custom formats
+// "dateField": new Date("2023-01-01"),  // ❌ WILL FAIL
+// "dateField": new Date("Mon Jan 01 2023"),  // ❌ WILL FAIL
+
+// ✅ CORRECT: Always use explicit collection syntax
+db.getCollection("collection_name").deleteMany({"field": "value"});
+
+// ❌ AVOID: Do not use shorthand collection syntax
+// db.collection_name.deleteMany({"field": "value"});  // ❌ MIGHT FAIL
+
+// ✅ CORRECT: Simple query operators
+db.getCollection("collection_name").find({
+    "status": {"$in": ["active", "pending"]},
+    "count": {"$gte": 10},
+    "name": {"$regex": "^test"}
+});
+
+// ✅ CORRECT: Update operations
+db.getCollection("collection_name").updateMany(
+    {"status": "old"},
+    {
+        "$set": {"status": "new"},
+        "$unset": {"oldField": ""},
+        "$push": {"tags": "newTag"}
+    }
+);
+
+// ✅ CORRECT: Complex nested updates
+db.getCollection("collection_name").updateMany(
+    {"roleKey": {"$in": ["ADMIN", "USER"]}},
+    {
+        "$pull": {
+            "permissions": {
+                "permission": {"$in": ["old.permission1", "old.permission2"]}
+            }
+        }
+    }
+);
+
+db.getCollection("collection_name").updateMany(
+    {"roleKey": {"$in": ["ADMIN", "USER"]}},
+    {
+        "$push": {
+            "permissions": {
+                "$each": [
+                    {"permission": "new.permission1", "level": "READ"},
+                    {"permission": "new.permission2", "level": "WRITE"}
+                ]
+            }
+        }
+    }
+);
