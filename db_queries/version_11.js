@@ -1,6 +1,8 @@
 // context: liquibase_test
 // This file contains changes for the liquibase_test database
 
+
+
 // 1. Insert sample data into sk_uam_permission collection
 db.getCollection("sk_uam_permission").insertMany([
     {
@@ -10,9 +12,9 @@ db.getCollection("sk_uam_permission").insertMany([
         "type": "normal",
         "moduleKey": "sp.benefits.benefits",
         "createdBy": "system",
-        "createdAt": new Date("2023-01-01"),
+        "createdAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
         "updatedBy": "system",
-        "updatedAt": new Date("2023-01-01"),
+        "updatedAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
         "description": "Old permission to list Benefits guide.",
         "featureKey": "sp.benefits.benefits.old"
     },
@@ -23,9 +25,9 @@ db.getCollection("sk_uam_permission").insertMany([
         "type": "normal",
         "moduleKey": "sp.benefits.benefits",
         "createdBy": "system",
-        "createdAt": new Date("2023-01-01"),
+        "createdAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
         "updatedBy": "system",
-        "updatedAt": new Date("2023-01-01"),
+        "updatedAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
         "description": "Old permission to share with prospect hire.",
         "featureKey": "sp.benefits.benefits.old"
     },
@@ -36,9 +38,9 @@ db.getCollection("sk_uam_permission").insertMany([
         "type": "normal",
         "moduleKey": "sp.benefits.other",
         "createdBy": "system",
-        "createdAt": new Date("2023-01-01"),
+        "createdAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
         "updatedBy": "system",
-        "updatedAt": new Date("2023-01-01"),
+        "updatedAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
         "description": "Other permission that should remain.",
         "featureKey": "sp.benefits.other.feature"
     }
@@ -116,7 +118,9 @@ db.getCollection("sk_uam_role").insertMany([
             }
         ],
         "createdBy": "system",
-        "createdAt": new Date("2023-01-01")
+        "createdAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
+        "updatedBy": "system",
+        "updatedAt": new Date("Mon Jan 01 2023 00:00:00 GMT")
     },
     {
         "roleKey": "GLOBAL_BENEFITS_MANAGER",
@@ -133,7 +137,9 @@ db.getCollection("sk_uam_role").insertMany([
             }
         ],
         "createdBy": "system",
-        "createdAt": new Date("2023-01-01")
+        "createdAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
+        "updatedBy": "system",
+        "updatedAt": new Date("Mon Jan 01 2023 00:00:00 GMT")
     },
     {
         "roleKey": "TALENT_PARTNER",
@@ -150,6 +156,23 @@ db.getCollection("sk_uam_role").insertMany([
             }
         ],
         "createdBy": "system",
-        "createdAt": new Date("2023-01-01")
+        "createdAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
+        "updatedBy": "system",
+        "updatedAt": new Date("Mon Jan 01 2023 00:00:00 GMT")
+    },
+    {
+        "roleKey": "OTHER_ROLE",
+        "roleName": "Other Role",
+        "description": "Role that should not be affected",
+        "permissionGroups": [
+            {
+                "permissionGroup": "sp.benefits.other.group",
+                "accessLevel": "ALL"
+            }
+        ],
+        "createdBy": "system",
+        "createdAt": new Date("Mon Jan 01 2023 00:00:00 GMT"),
+        "updatedBy": "system",
+        "updatedAt": new Date("Mon Jan 01 2023 00:00:00 GMT")
     }
 ]);
