@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:mongodb="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.5.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <!-- VALIDATION REPORT -->
+    <!-- ⚠️ WARNINGS: -->
+    <!-- ================================================== -->
+    <!-- 1. Header: Missing recommended header field: @author -->
+    <!-- 2. Header: Missing recommended header field: @description -->
+    <!-- 3. Header: Missing recommended header field: @version -->
+    <!-- ✅ Liquibase XML generated successfully, but please review warnings above. -->
+    <!-- END VALIDATION REPORT -->
+
+    <changeSet id="12.1" author="praveenchandhar" context="liquibase_test">
+        <!-- INSERTMANY operation on sk_uam_permission (from line 5) -->
+        <mongodb:insertMany collectionName="sk_uam_permission">
+            <mongodb:documents><![CDATA[
+            [ { "permission": "sp.benefits.benefitguide.list", "suiteKey": "sp", "productKey": "sp.benefits", "type": "normal", "moduleKey": "sp.benefits.benefits", "createdBy": "1", "createdAt": ISODate(), "updatedBy": "1", "updatedAt": ISODate(), "description": "Permission to list Benefits guide.", "featureKey": "sp.benefits.benefits.benefits" }, { "permission": "sp.benefits.benefitguide.sharewithprospecthire", "suiteKey": "sp", "productKey": "sp.benefits", "type": "normal", "moduleKey": "sp.benefits.benefits", "createdBy": "1", "createdAt": ISODate(), "updatedBy": "1", "updatedAt": ISODate(), "description": "Permission to share with prospect hire.", "featureKey": "sp.benefits.benefits.benefits" } ]
+            ]]></mongodb:documents>
+        </mongodb:insertMany>
+    </changeSet>
+    <changeSet id="12.2" author="praveenchandhar" context="liquibase_test">
+        <!-- INSERTMANY operation on sk_uam_permission_feature (from line 33) -->
+        <mongodb:insertMany collectionName="sk_uam_permission_feature">
+            <mongodb:documents><![CDATA[
+            [ { "permission": "sp.benefits.benefitguide.list", "description": "Permission to list Benefits guide.", "featureKey": "sp.benefits.benefits.benefits" }, { "permission": "sp.benefits.benefitguide.sharewithprospecthire", "description": "Permission to share with prospect hire.", "featureKey": "sp.benefits.benefits.benefits" } ]
+            ]]></mongodb:documents>
+        </mongodb:insertMany>
+    </changeSet>
+    <changeSet id="12.3" author="praveenchandhar" context="liquibase_test">
+        <!-- INSERTMANY operation on sk_uam_permission_group (from line 47) -->
+        <mongodb:insertMany collectionName="sk_uam_permission_group">
+            <mongodb:documents><![CDATA[
+            [{ "permissionGroupName": "sp.benefits.benefitguide.viewer", "description": "Permissions for benefits guide viewer.", "permissions": [ { "permission": "sp.benefits.benefitguide.list" } ], "accessLevel": [ "ALL", "PUBLIC", "SENSITIVE", "COMP", "PERSONAL", "NON_SENSITIVE" ] }, { "permissionGroupName": "sp.benefits.benefitguide.tpviewer", "description": "Permissions for benefits guide tp viewer.", "permissions": [ { "permission": "sp.benefits.benefitguide.sharewithprospecthire" } ], "accessLevel": [ "ALL", "PUBLIC", "SENSITIVE", "COMP", "PERSONAL", "NON_SENSITIVE" ] } ]
+            ]]></mongodb:documents>
+        </mongodb:insertMany>
+    </changeSet>
+    <changeSet id="12.4" author="praveenchandhar" context="liquibase_test">
+        <!-- UPDATEMANY operation on sk_uam_role (from line 73) -->
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "update": "sk_uam_role",
+                "updates": [
+                    {
+                        "q": { "roleKey": {"$in": ["CONTENT_EDITOR", "GLOBAL_BENEFITS_MANAGER"]} },
+                        "u": { $pull: { permissionGroups: { permissionGroup: { $in: ["sp.benefits.benefitguide.viewer"] } } } },
+                        "multi": true
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="12.5" author="praveenchandhar" context="liquibase_test">
+        <!-- UPDATEMANY operation on sk_uam_role (from line 80) -->
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "update": "sk_uam_role",
+                "updates": [
+                    {
+                        "q": { "roleKey": {"$in": ["CONTENT_EDITOR", "GLOBAL_BENEFITS_MANAGER"]} },
+                        "u": { $push: { "permissionGroups": { $each: [{ "permissionGroup": "sp.benefits.benefitguide.viewer", "accessLevel": "ALL" }] } } },
+                        "multi": true
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="12.6" author="praveenchandhar" context="liquibase_test">
+        <!-- UPDATEMANY operation on sk_uam_role (from line 94) -->
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "update": "sk_uam_role",
+                "updates": [
+                    {
+                        "q": { "roleKey": {"$in": ["TALENT_PARTNER"]} },
+                        "u": { $pull: { permissionGroups: { permissionGroup: { $in: ["sp.benefits.benefitguide.tpviewer"] } } } },
+                        "multi": true
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="12.7" author="praveenchandhar" context="liquibase_test">
+        <!-- UPDATEMANY operation on sk_uam_role (from line 100) -->
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "update": "sk_uam_role",
+                "updates": [
+                    {
+                        "q": { "roleKey": {"$in": ["TALENT_PARTNER"]} },
+                        "u": { $push: { "permissionGroups": { $each: [{ "permissionGroup": "sp.benefits.benefitguide.tpviewer", "accessLevel": "ALL" }] } } },
+                        "multi": true
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="12.8" author="praveenchandhar" context="liquibase_test">
+        <!-- DELETEMANY operation on sk_uam_permission (from line 1) -->
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "delete": "sk_uam_permission",
+                "deletes": [
+                    {
+                        "q": {"permission": {$in: ["sp.benefits.benefitguide.list", "sp.benefits.benefitguide.sharewithprospecthire"]}},
+                        "limit": 0
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="12.9" author="praveenchandhar" context="liquibase_test">
+        <!-- DELETEMANY operation on sk_uam_permission_feature (from line 29) -->
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "delete": "sk_uam_permission_feature",
+                "deletes": [
+                    {
+                        "q": {"permission": {$in: ["sp.benefits.benefitguide.list", "sp.benefits.benefitguide.sharewithprospecthire"]}},
+                        "limit": 0
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+    <changeSet id="12.10" author="praveenchandhar" context="liquibase_test">
+        <!-- DELETEMANY operation on sk_uam_permission_group (from line 43) -->
+        <mongodb:runCommand>
+            <mongodb:command><![CDATA[
+            {
+                "delete": "sk_uam_permission_group",
+                "deletes": [
+                    {
+                        "q": {"permissionGroupName": {$in: ["sp.benefits.benefitguide.viewer", "sp.benefits.benefitguide.tpviewer"]}},
+                        "limit": 0
+                    }
+                ]
+            }
+            ]]></mongodb:command>
+        </mongodb:runCommand>
+    </changeSet>
+</databaseChangeLog>
