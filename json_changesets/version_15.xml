@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:mongodb="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xsi:schemaLocation="
+        http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.5.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+    <!-- VALIDATION REPORT -->
+    <!-- ⚠️ WARNINGS: -->
+    <!-- ================================================== -->
+    <!-- 1. Header: Missing recommended header field: @author -->
+    <!-- 2. Header: Missing recommended header field: @description -->
+    <!-- 3. Header: Missing recommended header field: @version -->
+    <!-- ✅ Liquibase XML generated successfully, but please review warnings above. -->
+    <!-- END VALIDATION REPORT -->
+
+    <changeSet id="15.1" author="praveenchandhar" context="liquibase_test">
+        <!-- CREATECOLLECTION operation on demo_1 (from line 1) -->
+        <mongodb:createCollection collectionName="demo_1" />
+    </changeSet>
+    <changeSet id="15.2" author="praveenchandhar" context="liquibase_test">
+        <!-- CREATECOLLECTION operation on demo_2 (from line 2) -->
+        <mongodb:createCollection collectionName="demo_2" />
+    </changeSet>
+</databaseChangeLog>
