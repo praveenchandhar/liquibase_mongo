@@ -16,7 +16,7 @@
     <!-- ✅ Liquibase XML generated successfully, but please review warnings above. -->
     <!-- END VALIDATION REPORT -->
 
-    <changeSet id="1.1" author="praveenchandhar" context="liquibase_test">
+    <changeSet id="111.1" author="praveenchandhar" context="liquibase_test">
         <!-- INSERTONE operation on security_test (from line 1) -->
         <mongodb:insertOne collectionName="security_test">
             <mongodb:document><![CDATA[
@@ -24,7 +24,7 @@
             ]]></mongodb:document>
         </mongodb:insertOne>
     </changeSet>
-    <changeSet id="1.2" author="praveenchandhar" context="liquibase_test">
+    <changeSet id="111.2" author="praveenchandhar" context="liquibase_test">
         <!-- CREATEINDEX operation on security_test (from line 7) -->
         <mongodb:runCommand>
             <mongodb:command><![CDATA[
