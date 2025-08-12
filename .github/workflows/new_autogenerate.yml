@@ -1,4 +1,4 @@
-name: Generate Changesets from Merged JS Files
+name: New Generate Changesets from Merged JS Files
 
 on:
   pull_request:
