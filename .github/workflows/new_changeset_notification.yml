@@ -1,4 +1,4 @@
-name: Changeset Applied Notification
+name: New Changeset Applied Notification
 
 on:
   pull_request:
