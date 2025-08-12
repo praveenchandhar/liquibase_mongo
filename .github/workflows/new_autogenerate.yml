@@ -1,4 +1,4 @@
-name: New Generate Changesets from Merged JS Files
+name: Generate Changesets from Merged JS Files
 
 on:
   pull_request:
@@ -98,9 +98,9 @@ jobs:
           VERSION=$(basename ${{ env.js_file }} .js)
           echo "Processing version: $VERSION"
           
-          # Run simplified Python script (no PR creation)
+          # Run Python script with --skip-pr flag
           set +e
-          python3 scripts/v4.py \
+          python3 scripts/v5.py \
             --version "$VERSION" \
             --js_file "${{ env.js_file }}" \
             --author "${{ github.actor }}" \
