@@ -12,14 +12,22 @@ jobs:
     if: ${{ github.event.pull_request.merged == true }} # Ensure only merged PRs trigger the workflow
     name: Generate Changesets Automatically
     runs-on: ubuntu-latest
-    
+
     # 🔒 Add explicit minimal permissions
     permissions:
       contents: write        # Create files, push changes
       pull-requests: write   # Create PRs, add comments
       actions: read         # Read workflow information
-      metadata: read        # Basic repository access
+      repository-projects: read  # Basic repository access
       issues: write         # Comment on PRs
+    
+    # # 🔒 Add explicit minimal permissions
+    # permissions:
+    #   contents: write        # Create files, push changes
+    #   pull-requests: write   # Create PRs, add comments
+    #   actions: read         # Read workflow information
+    #   metadata: read        # Basic repository access
+    #   issues: write         # Comment on PRs
 
     steps:
       # Step 1: Checkout Repository
