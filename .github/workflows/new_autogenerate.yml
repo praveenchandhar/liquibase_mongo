@@ -12,7 +12,7 @@ jobs:
     if: ${{ github.event.pull_request.merged == true }} # Ensure only merged PRs trigger the workflow
     name: Generate Changesets Automatically
     runs-on: ubuntu-latest
-
+    
     # 🔒 Add explicit minimal permissions
     permissions:
       contents: write        # Create files, push changes
@@ -20,14 +20,6 @@ jobs:
       actions: read         # Read workflow information
       repository-projects: read  # Basic repository access
       issues: write         # Comment on PRs
-    
-    # # 🔒 Add explicit minimal permissions
-    # permissions:
-    #   contents: write        # Create files, push changes
-    #   pull-requests: write   # Create PRs, add comments
-    #   actions: read         # Read workflow information
-    #   metadata: read        # Basic repository access
-    #   issues: write         # Comment on PRs
 
     steps:
       # Step 1: Checkout Repository
@@ -197,6 +189,7 @@ jobs:
           # Verify Python and pip versions
           echo "Python version: $(python3 --version)"
           echo "Pip version: $(pip3 --version)"
+          echo "PyGithub version: $(pip3 show PyGithub | grep Version || echo 'PyGithub not found')"
 
       # Step 7: Security validation before script execution
       - name: Pre-execution Security Validation
@@ -232,7 +225,40 @@ jobs:
           
           echo "🔒 Security validation setup complete"
 
-      # Step 8: Run Python Script with enhanced monitoring
+      # Step 8: Debug Environment
+      - name: Debug Environment
+        if: env.has_js_file == 'true'
+        run: |
+          echo "🔍 Environment Debug Information:"
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          echo ""
+          echo "Python packages installed:"
+          pip3 list | grep -i github || echo "PyGithub not found"
+          echo ""
+          echo "JS file content check:"
+          if [ -f "${{ env.js_file }}" ]; then
+            echo "✅ JS file exists: ${{ env.js_file }}"
+            echo "File size: $(wc -c < ${{ env.js_file }}) bytes"
+            echo "First few lines:"
+            head -5 "${{ env.js_file }}"
+          else
+            echo "❌ JS file not found: ${{ env.js_file }}"
+          fi
+          echo ""
+          echo "json_changesets directory:"
+          if [ -d "json_changesets" ]; then
+            echo "✅ Directory exists"
+            ls -la json_changesets/
+          else
+            echo "❌ Directory does not exist"
+          fi
+          echo ""
+          echo "Environment variables:"
+          env | grep -E "(js_file|has_js_file)" | sort
+
+      # Step 9: Run Python Script with enhanced monitoring
       - name: Run Changeset Generator
         if: env.has_js_file == 'true'
         id: generate_changeset
@@ -247,33 +273,70 @@ jobs:
           echo "Branch: auto_changeset_${{ github.sha }}"
           echo ""
           
-          echo "🚀 Executing Python script with monitoring..."
+          echo "🔍 Pre-execution checks..."
+          echo "Current directory: $(pwd)"
+          echo "Python version: $(python3 --version)"
+          echo "Script exists: $(ls -la scripts/v4.py)"
+          echo "JS file exists: $(ls -la ${{ env.js_file }})"
+          echo ""
           
-          # Capture output to extract PR URL
-          OUTPUT=$(python3 scripts/v4.py \
+          echo "🚀 Executing Python script with enhanced error handling..."
+          
+          # Run with better error handling
+          set +e  # Don't exit on error immediately
+          
+          python3 scripts/v4.py \
             --version $(basename ${{ env.js_file }} .js) \
             --js_file ${{ env.js_file }} \
             --author ${{ github.actor }} \
             --repo "${{ github.repository }}" \
             --branch "auto_changeset_${{ github.sha }}" \
-            --token "${{ secrets.GITHUB_TOKEN }}" 2>&1)
+            --token "${{ secrets.GITHUB_TOKEN }}"
           
-          echo "$OUTPUT"
+          SCRIPT_EXIT_CODE=$?
           
-          # Extract PR URL from output
-          CHANGESET_PR_URL=$(echo "$OUTPUT" | grep -oP 'Pull Request created successfully: \K.*' || echo "")
+          echo ""
+          echo "🔍 Script execution completed with exit code: $SCRIPT_EXIT_CODE"
           
-          if [ -n "$CHANGESET_PR_URL" ]; then
-            echo "✅ Python script execution completed"
-            echo "🔗 Changeset PR created: $CHANGESET_PR_URL"
-            echo "changeset_pr_url=$CHANGESET_PR_URL" >> $GITHUB_ENV
-            echo "changeset_created=true" >> $GITHUB_ENV
+          if [ $SCRIPT_EXIT_CODE -eq 0 ]; then
+            echo "✅ Python script execution completed successfully"
+            
+            # Check if XML was generated
+            VERSION=$(basename ${{ env.js_file }} .js)
+            XML_FILE="json_changesets/${VERSION}.xml"
+            
+            if [ -f "$XML_FILE" ]; then
+              echo "✅ XML file generated: $XML_FILE"
+              echo "changeset_created=true" >> $GITHUB_ENV
+              
+              # Look for PR URL in recent output
+              echo "changeset_pr_url=https://github.com/${{ github.repository }}/pulls" >> $GITHUB_ENV
+            else
+              echo "❌ XML file was not generated"
+              echo "changeset_created=false" >> $GITHUB_ENV
+            fi
           else
-            echo "❌ No PR URL found in output - PR creation may have failed"
+            echo "❌ Python script failed with exit code: $SCRIPT_EXIT_CODE"
             echo "changeset_created=false" >> $GITHUB_ENV
+            
+            echo ""
+            echo "🔍 Debugging information:"
+            echo "Working directory contents:"
+            ls -la
+            echo ""
+            echo "json_changesets directory:"
+            ls -la json_changesets/ 2>/dev/null || echo "json_changesets directory does not exist"
+            echo ""
+            echo "Environment variables:"
+            env | grep -E "(GITHUB|js_file|has_js_file)" | sort
+            
+            # Continue workflow to show what happened, but mark as failed
+            echo "script_failed=true" >> $GITHUB_ENV
           fi
+          
+          set -e  # Re-enable exit on error
 
-      # Step 9: Post-execution security validation
+      # Step 10: Post-execution security validation
       - name: Post-execution Security Validation
         if: env.has_js_file == 'true'
         run: |
@@ -323,9 +386,9 @@ jobs:
           
           echo "✅ Security validation passed - all file operations are authorized"
 
-      # Step 10: Verify Generated XML
+      # Step 11: Verify Generated XML
       - name: Verify Generated XML
-        if: env.has_js_file == 'true'
+        if: env.has_js_file == 'true' && env.script_failed != 'true'
         run: |
           echo "=== Verifying Generated XML ==="
           VERSION=$(basename ${{ env.js_file }} .js)
@@ -354,9 +417,9 @@ jobs:
             exit 1
           fi
 
-      # Step 11: Post Success Comment on Original PR
+      # Step 12: Post Success Comment on Original PR
       - name: Post Success Comment on Original PR
-        if: env.has_js_file == 'true' && env.changeset_created == 'true'
+        if: env.has_js_file == 'true' && env.changeset_created == 'true' && env.script_failed != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -372,18 +435,17 @@ jobs:
           cat > comment_body.md << 'EOF'
           ## 🤖 Auto-Generated Changeset Created!
 
-          **A new changeset PR has been automatically generated from your merged changes.**
+          **A new changeset has been automatically generated from your merged changes.**
 
           ### 📋 Summary
           - **Source File:** `${{ env.js_file }}`
           - **Generated XML:** `json_changesets/${VERSION}.xml`
           - **Operations:** ${OPERATION_COUNT} changeset(s)
           - **Context:** `liquibase_test`
-          - **Generated PR:** ${{ env.changeset_pr_url }}
 
-          ### 🎯 **✨ Click on the PR above to review your database changes! 🔍📋**
+          ### 🎯 **✨ Review the generated changeset in the json_changesets folder! 🔍📋**
           
-          **👆 Important:** Review and merge the generated changeset PR before applying to database
+          **👆 Important:** Review the generated changeset before applying to database
 
           ---
           *🤖 This comment was automatically generated by the Changeset Generator workflow.*  
@@ -399,7 +461,7 @@ jobs:
           
           echo "✅ Success comment posted on PR #${{ github.event.pull_request.number }}"
 
-      # Step 12: Post No-Action Comment (when no JS files found)
+      # Step 13: Post No-Action Comment (when no JS files found)
       - name: Post No-Action Comment on Original PR
         if: env.has_js_file == 'false'
         env:
@@ -440,7 +502,49 @@ jobs:
           
           echo "✅ No-action comment posted on PR #${{ github.event.pull_request.number }}"
 
-      # Step 13: Final Security Summary
+      # Step 14: Post Error Comment (when script fails)
+      - name: Post Error Comment on Original PR
+        if: env.has_js_file == 'true' && env.script_failed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Posting Error Comment on Original PR ==="
+          
+          # Create error comment and save to file
+          cat > error_comment.md << 'EOF'
+          ## ❌ Changeset Generation Failed
+
+          **The changeset generation process encountered an error.**
+
+          **Source File:** `${{ env.js_file }}`
+
+          ### 🔍 Troubleshooting Steps
+          1. Check that your `.js` file follows the correct format
+          2. Ensure the file includes: `// context: liquibase_test`
+          3. Verify MongoDB syntax is correct
+          4. Review the [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed error information
+
+          ### 📝 Expected Format
+          ```javascript
+          // context: liquibase_test
+          // Description of changes
+
+          db.getCollection("collection_name").insertOne({
+              field: "value"
+          });
+          ```
+
+          ---
+          *🤖 This comment was automatically generated by the Changeset Generator workflow.*  
+          *⚡ Workflow Run: [View Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+          EOF
+          
+          # Post comment using GitHub CLI
+          gh pr comment ${{ github.event.pull_request.number }} --body-file error_comment.md
+          
+          echo "✅ Error comment posted on PR #${{ github.event.pull_request.number }}"
+
+      # Step 15: Final Security Summary
       - name: Workflow Summary
         if: always()
         run: |
@@ -452,13 +556,17 @@ jobs:
             echo "✅ JS file detected: ${{ env.js_file }}"
             VERSION=$(basename ${{ env.js_file }} .js)
             XML_FILE="json_changesets/${VERSION}.xml"
-            if [ -f "$XML_FILE" ]; then
+            
+            if [ "${{ env.script_failed }}" = "true" ]; then
+              echo "❌ Python script execution failed"
+              echo "❌ Error comment posted on PR #${{ github.event.pull_request.number }}"
+            elif [ -f "$XML_FILE" ]; then
               echo "✅ XML changeset generated: $XML_FILE"
               if [ "${{ env.changeset_created }}" = "true" ]; then
-                echo "✅ Changeset PR created: ${{ env.changeset_pr_url }}"
-                echo "✅ Comment posted on original PR #${{ github.event.pull_request.number }}"
+                echo "✅ Changeset created successfully"
+                echo "✅ Success comment posted on original PR #${{ github.event.pull_request.number }}"
               else
-                echo "❌ PR creation failed"
+                echo "❌ Changeset creation failed"
               fi
             else
               echo "❌ XML generation failed"
