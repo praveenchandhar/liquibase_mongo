@@ -12,7 +12,7 @@ jobs:
     if: ${{ github.event.pull_request.merged == true }} # Ensure only merged PRs trigger the workflow
     name: Generate Changesets Automatically
     runs-on: ubuntu-latest
-
+    
     # 🔒 Add explicit minimal permissions for GitHub API operations
     permissions:
       contents: write        # Create files, push changes, create branches
@@ -22,14 +22,6 @@ jobs:
       issues: write         # Comment on PRs
       checks: write         # Write check status
       statuses: write       # Write commit status
-    
-    # # 🔒 Add explicit minimal permissions
-    # permissions:
-    #   contents: write        # Create files, push changes
-    #   pull-requests: write   # Create PRs, add comments
-    #   actions: read         # Read workflow information
-    #   repository-projects: read  # Basic repository access
-    #   issues: write         # Comment on PRs
 
     steps:
       # Step 1: Checkout Repository
@@ -235,7 +227,65 @@ jobs:
           
           echo "🔒 Security validation setup complete"
 
-      # Step 8: Debug Environment
+      # Step 8: Check GitHub Token Permissions
+      - name: Check GitHub Token Permissions
+        if: env.has_js_file == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Checking GitHub token permissions..."
+          
+          # Install jq if not available
+          sudo apt update
+          sudo apt install jq -y
+          
+          # Test token permissions
+          echo "Repository permissions:"
+          curl -s -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }} | \
+               jq -r '.permissions // "No permissions found"'
+          
+          echo ""
+          echo "Testing PR creation permissions..."
+          
+          # Test if we can access pulls endpoint
+          HTTP_STATUS=$(curl -s -w "%{http_code}" \
+               -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/pulls?state=closed&per_page=1 \
+               -o /tmp/pulls_test.json)
+          
+          echo "HTTP Status for pulls endpoint: $HTTP_STATUS"
+          
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "✅ Pull requests endpoint accessible"
+          else
+            echo "❌ Pull requests endpoint not accessible"
+            echo "Response:"
+            cat /tmp/pulls_test.json 2>/dev/null || echo "No response content"
+          fi
+          
+          # Test branch creation permissions
+          echo ""
+          echo "Testing repository contents access..."
+          HTTP_STATUS_CONTENTS=$(curl -s -w "%{http_code}" \
+               -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               https://api.github.com/repos/${{ github.repository }}/contents \
+               -o /tmp/contents_test.json)
+          
+          echo "HTTP Status for contents endpoint: $HTTP_STATUS_CONTENTS"
+          
+          if [ "$HTTP_STATUS_CONTENTS" = "200" ]; then
+            echo "✅ Repository contents endpoint accessible"
+          else
+            echo "❌ Repository contents endpoint not accessible"
+            echo "Response:"
+            cat /tmp/contents_test.json 2>/dev/null || echo "No response content"
+          fi
+
+      # Step 9: Debug Environment
       - name: Debug Environment
         if: env.has_js_file == 'true'
         run: |
@@ -268,7 +318,7 @@ jobs:
           echo "Environment variables:"
           env | grep -E "(js_file|has_js_file)" | sort
 
-      # Step 9: Run Python Script with enhanced monitoring
+      # Step 10: Run Python Script with enhanced monitoring
       - name: Run Changeset Generator
         if: env.has_js_file == 'true'
         id: generate_changeset
@@ -346,7 +396,7 @@ jobs:
           
           set -e  # Re-enable exit on error
 
-      # Step 10: Post-execution security validation
+      # Step 11: Post-execution security validation
       - name: Post-execution Security Validation
         if: env.has_js_file == 'true'
         run: |
@@ -396,7 +446,7 @@ jobs:
           
           echo "✅ Security validation passed - all file operations are authorized"
 
-      # Step 11: Verify Generated XML
+      # Step 12: Verify Generated XML
       - name: Verify Generated XML
         if: env.has_js_file == 'true' && env.script_failed != 'true'
         run: |
@@ -427,7 +477,7 @@ jobs:
             exit 1
           fi
 
-      # Step 12: Post Success Comment on Original PR
+      # Step 13: Post Success Comment on Original PR
       - name: Post Success Comment on Original PR
         if: env.has_js_file == 'true' && env.changeset_created == 'true' && env.script_failed != 'true'
         env:
@@ -471,7 +521,7 @@ jobs:
           
           echo "✅ Success comment posted on PR #${{ github.event.pull_request.number }}"
 
-      # Step 13: Post No-Action Comment (when no JS files found)
+      # Step 14: Post No-Action Comment (when no JS files found)
       - name: Post No-Action Comment on Original PR
         if: env.has_js_file == 'false'
         env:
@@ -512,7 +562,7 @@ jobs:
           
           echo "✅ No-action comment posted on PR #${{ github.event.pull_request.number }}"
 
-      # Step 14: Post Error Comment (when script fails)
+      # Step 15: Post Error Comment (when script fails)
       - name: Post Error Comment on Original PR
         if: env.has_js_file == 'true' && env.script_failed == 'true'
         env:
@@ -554,7 +604,7 @@ jobs:
           
           echo "✅ Error comment posted on PR #${{ github.event.pull_request.number }}"
 
-      # Step 15: Final Security Summary
+      # Step 16: Final Security Summary
       - name: Workflow Summary
         if: always()
         run: |
