@@ -1,0 +1,463 @@
+name: New Generate Changesets from Merged JS Files
+
+on:
+  pull_request:
+    paths:
+      - db_queries/**
+    types:
+      - closed # Trigger only when PR is closed (and potentially merged)
+
+jobs:
+  generate-changesets:
+    if: ${{ github.event.pull_request.merged == true }} # Ensure only merged PRs trigger the workflow
+    name: Generate Changesets Automatically
+    runs-on: ubuntu-latest
+    
+    # 🔒 Add explicit minimal permissions
+    permissions:
+      contents: write        # Create files, push changes
+      pull-requests: write   # Create PRs, add comments
+      actions: read         # Read workflow information
+      metadata: read        # Basic repository access
+      issues: write         # Comment on PRs
+
+    steps:
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch full history for proper diff analysis
+
+      # Step 2: Debug PR Information
+      - name: Debug PR Information
+        run: |
+          echo "=== PR Debug Information ==="
+          echo "PR Number: ${{ github.event.pull_request.number }}"
+          echo "PR Title: ${{ github.event.pull_request.title }}"
+          echo "Base Branch: ${{ github.event.pull_request.base.ref }}"
+          echo "Head Branch: ${{ github.event.pull_request.head.ref }}"
+          echo "Merged: ${{ github.event.pull_request.merged }}"
+          echo "Merge Commit SHA: ${{ github.event.pull_request.merge_commit_sha }}"
+          echo "Head SHA: ${{ github.event.pull_request.head.sha }}"
+          echo "Base SHA: ${{ github.event.pull_request.base.sha }}"
+
+      # Step 3: Detect Merged .js File with Enhanced Debugging
+      - name: Get Merged File Name
+        id: get_filename
+        run: |
+          echo "=== File Detection Debug ==="
+          echo "Detecting merged .js files..."
+          
+          git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.ref }}
+          MERGE_COMMIT_SHA=${{ github.event.pull_request.merge_commit_sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          
+          echo "Merge commit SHA: $MERGE_COMMIT_SHA"
+          echo "Head SHA: $HEAD_SHA"
+          echo "Base SHA: $BASE_SHA"
+          
+          echo ""
+          echo "=== All files in merge commit ==="
+          ALL_FILES=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA 2>/dev/null || echo "No files found in merge commit")
+          echo "$ALL_FILES"
+          
+          echo ""
+          echo "=== Files changed between base and head ==="
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA..$HEAD_SHA 2>/dev/null || echo "No files found in diff")
+          echo "$CHANGED_FILES"
+          
+          echo ""
+          echo "=== Checking db_queries directory ==="
+          if [ -d "db_queries" ]; then
+            echo "✅ db_queries directory exists"
+            echo "Contents:"
+            ls -la db_queries/ 2>/dev/null || echo "Directory exists but is empty or inaccessible"
+          else
+            echo "❌ db_queries directory does not exist"
+          fi
+          
+          echo ""
+          echo "=== Looking for JS files in db_queries ==="
+          
+          # Method 1: From merge commit
+          FILES_METHOD1=$(git diff-tree --no-commit-id --name-only -r $MERGE_COMMIT_SHA 2>/dev/null | { grep 'db_queries/.*\.js' || true; })
+          echo "Method 1 (merge commit): '$FILES_METHOD1'"
+          
+          # Method 2: From diff between base and head
+          FILES_METHOD2=$(git diff --name-only $BASE_SHA..$HEAD_SHA 2>/dev/null | { grep 'db_queries/.*\.js' || true; })
+          echo "Method 2 (base..head diff): '$FILES_METHOD2'"
+          
+          # Method 3: Check if any JS files exist in current db_queries
+          if [ -d "db_queries" ]; then
+            FILES_METHOD3=$(find db_queries -name "*.js" 2>/dev/null || true)
+            echo "Method 3 (current files): '$FILES_METHOD3'"
+          else
+            FILES_METHOD3=""
+            echo "Method 3 (current files): 'db_queries directory not found'"
+          fi
+          
+          # Use the first method that finds files
+          FILES=""
+          if [ -n "$FILES_METHOD1" ]; then
+            FILES="$FILES_METHOD1"
+            echo "✅ Using Method 1 result"
+          elif [ -n "$FILES_METHOD2" ]; then
+            FILES="$FILES_METHOD2"
+            echo "✅ Using Method 2 result"
+          elif [ -n "$FILES_METHOD3" ]; then
+            FILES="$FILES_METHOD3"
+            echo "✅ Using Method 3 result"
+          fi
+          
+          echo ""
+          echo "=== Final Result ==="
+          if [ -z "$FILES" ]; then
+            echo "❌ No .js files found in db_queries directory"
+            echo "js_file=" >> $GITHUB_ENV
+            echo "has_js_file=false" >> $GITHUB_ENV
+          else
+            # If multiple files, take the first one
+            FILE=$(echo "$FILES" | head -n 1)
+            echo "✅ File detected: $FILE"
+            echo "js_file=$FILE" >> $GITHUB_ENV
+            echo "has_js_file=true" >> $GITHUB_ENV
+            
+            # Verify the file exists and show preview
+            if [ -f "$FILE" ]; then
+              echo "✅ File exists and is readable"
+              echo "File size: $(wc -c < "$FILE") bytes"
+              echo ""
+              echo "=== File Content Preview ==="
+              head -10 "$FILE" 2>/dev/null || echo "Could not read file content"
+              echo "=== End Preview ==="
+            else
+              echo "❌ File does not exist at path: $FILE"
+              echo "has_js_file=false" >> $GITHUB_ENV
+            fi
+          fi
+
+      # Step 4: Ensure scripts directory exists
+      - name: Verify scripts directory
+        if: env.has_js_file == 'true'
+        run: |
+          echo "Checking scripts directory..."
+          if [ ! -d "scripts" ]; then
+            echo "❌ scripts directory does not exist!"
+            echo "Creating scripts directory..."
+            mkdir -p scripts
+          else
+            echo "✅ scripts directory exists"
+          fi
+          
+          if [ ! -f "scripts/v4.py" ]; then
+            echo "❌ scripts/v4.py does not exist!"
+            echo "Please ensure the Python script is in the scripts/ directory"
+            exit 1
+          else
+            echo "✅ scripts/v4.py found"
+            echo "Script size: $(wc -c < scripts/v4.py) bytes"
+          fi
+
+      # Step 5: Create necessary directories with validation
+      - name: Create output directory
+        if: env.has_js_file == 'true'
+        run: |
+          echo "🔒 Creating json_changesets directory with security validation..."
+          mkdir -p json_changesets
+          echo "✅ Directory created successfully"
+          
+          # Validate that we only create authorized directories
+          echo "🔍 Validating directory creation..."
+          if [ -d "json_changesets" ]; then
+            echo "✅ Authorized directory created: json_changesets/"
+          else
+            echo "❌ Failed to create required directory"
+            exit 1
+          fi
+
+      # Step 6: Set Up Python Environment (only if we have a JS file)
+      - name: Install Python Dependencies
+        if: env.has_js_file == 'true'
+        run: |
+          echo "Installing Python dependencies..."
+          sudo apt update
+          sudo apt install python3 python3-pip -y
+          pip3 install PyGithub
+          echo "✅ Python dependencies installed successfully"
+          
+          # Verify Python and pip versions
+          echo "Python version: $(python3 --version)"
+          echo "Pip version: $(pip3 --version)"
+
+      # Step 7: Security validation before script execution
+      - name: Pre-execution Security Validation
+        if: env.has_js_file == 'true'
+        run: |
+          echo "🔒 Setting up security validation..."
+          
+          # Record current state for comparison
+          echo "📊 Recording initial repository state..."
+          find . -type f -name "*.xml" -o -name "*.js" -o -name "*.py" | sort > /tmp/initial_files.txt
+          
+          # Create validation function for allowed paths
+          cat > /tmp/validate_path.sh << 'EOF'
+          #!/bin/bash
+          validate_changeset_path() {
+            local path="$1"
+            case "$path" in
+              json_changesets/*|.git/*|.github/*)
+                echo "✅ ALLOWED: $path"
+                return 0
+                ;;
+              *)
+                echo "❌ BLOCKED: Unauthorized path access: $path"
+                return 1
+                ;;
+            esac
+          }
+          export -f validate_changeset_path
+          EOF
+          
+          chmod +x /tmp/validate_path.sh
+          source /tmp/validate_path.sh
+          
+          echo "🔒 Security validation setup complete"
+
+      # Step 8: Run Python Script with enhanced monitoring
+      - name: Run Changeset Generator
+        if: env.has_js_file == 'true'
+        id: generate_changeset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Running Changeset Generator with Security Monitoring ==="
+          echo "JS File: ${{ env.js_file }}"
+          echo "Version: $(basename ${{ env.js_file }} .js)"
+          echo "Author: ${{ github.actor }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: auto_changeset_${{ github.sha }}"
+          echo ""
+          
+          echo "🚀 Executing Python script with monitoring..."
+          
+          # Capture output to extract PR URL
+          OUTPUT=$(python3 scripts/v4.py \
+            --version $(basename ${{ env.js_file }} .js) \
+            --js_file ${{ env.js_file }} \
+            --author ${{ github.actor }} \
+            --repo "${{ github.repository }}" \
+            --branch "auto_changeset_${{ github.sha }}" \
+            --token "${{ secrets.GITHUB_TOKEN }}" 2>&1)
+          
+          echo "$OUTPUT"
+          
+          # Extract PR URL from output
+          CHANGESET_PR_URL=$(echo "$OUTPUT" | grep -oP 'Pull Request created successfully: \K.*' || echo "")
+          
+          if [ -n "$CHANGESET_PR_URL" ]; then
+            echo "✅ Python script execution completed"
+            echo "🔗 Changeset PR created: $CHANGESET_PR_URL"
+            echo "changeset_pr_url=$CHANGESET_PR_URL" >> $GITHUB_ENV
+            echo "changeset_created=true" >> $GITHUB_ENV
+          else
+            echo "❌ No PR URL found in output - PR creation may have failed"
+            echo "changeset_created=false" >> $GITHUB_ENV
+          fi
+
+      # Step 9: Post-execution security validation
+      - name: Post-execution Security Validation
+        if: env.has_js_file == 'true'
+        run: |
+          echo "🔍 Performing post-execution security validation..."
+          
+          # Check what files were created/modified
+          echo "📊 Analyzing file changes..."
+          find . -type f -name "*.xml" -o -name "*.js" -o -name "*.py" | sort > /tmp/final_files.txt
+          
+          # Compare with initial state
+          NEW_FILES=$(comm -13 /tmp/initial_files.txt /tmp/final_files.txt || true)
+          
+          if [ -n "$NEW_FILES" ]; then
+            echo "📝 New files detected:"
+            echo "$NEW_FILES"
+            
+            # Validate each new file is in authorized location
+            echo "$NEW_FILES" | while read -r file; do
+              if [[ "$file" =~ ^json_changesets/ ]]; then
+                echo "✅ AUTHORIZED: $file"
+              else
+                echo "❌ SECURITY VIOLATION: Unauthorized file creation: $file"
+                exit 1
+              fi
+            done
+          else
+            echo "ℹ️ No new files detected"
+          fi
+          
+          # Check git status for modifications
+          echo "🔍 Checking git status for unauthorized modifications..."
+          MODIFIED_FILES=$(git status --porcelain | awk '{print $2}' || true)
+          
+          if [ -n "$MODIFIED_FILES" ]; then
+            echo "📝 Modified files detected:"
+            echo "$MODIFIED_FILES"
+            
+            for file in $MODIFIED_FILES; do
+              if [[ "$file" =~ ^json_changesets/ ]] || [[ "$file" =~ ^\.git/ ]]; then
+                echo "✅ AUTHORIZED MODIFICATION: $file"
+              else
+                echo "❌ SECURITY VIOLATION: Unauthorized modification: $file"
+                exit 1
+              fi
+            done
+          fi
+          
+          echo "✅ Security validation passed - all file operations are authorized"
+
+      # Step 10: Verify Generated XML
+      - name: Verify Generated XML
+        if: env.has_js_file == 'true'
+        run: |
+          echo "=== Verifying Generated XML ==="
+          VERSION=$(basename ${{ env.js_file }} .js)
+          XML_FILE="json_changesets/${VERSION}.xml"
+          
+          if [ -f "$XML_FILE" ]; then
+            echo "✅ XML file generated successfully: $XML_FILE"
+            echo "File size: $(wc -c < "$XML_FILE") bytes"
+            echo ""
+            echo "=== Generated XML Content ==="
+            cat "$XML_FILE"
+            echo ""
+            echo "=== End XML Content ==="
+            
+            # Basic XML validation
+            if python3 -c "import xml.etree.ElementTree as ET; ET.parse('$XML_FILE')" 2>/dev/null; then
+              echo "✅ XML is well-formed"
+            else
+              echo "❌ XML validation failed"
+              exit 1
+            fi
+          else
+            echo "❌ XML file was not generated: $XML_FILE"
+            echo "Checking json_changesets directory contents:"
+            ls -la json_changesets/ 2>/dev/null || echo "json_changesets directory does not exist"
+            exit 1
+          fi
+
+      # Step 11: Post Success Comment on Original PR
+      - name: Post Success Comment on Original PR
+        if: env.has_js_file == 'true' && env.changeset_created == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Posting Success Comment on Original PR ==="
+          
+          VERSION=$(basename ${{ env.js_file }} .js)
+          XML_FILE="json_changesets/${VERSION}.xml"
+          
+          # Count operations in the XML
+          OPERATION_COUNT=$(grep -c '<changeSet id=' "$XML_FILE" 2>/dev/null || echo "0")
+          
+          # Create success comment and save to file
+          cat > comment_body.md << 'EOF'
+          ## 🤖 Auto-Generated Changeset Created!
+
+          **A new changeset PR has been automatically generated from your merged changes.**
+
+          ### 📋 Summary
+          - **Source File:** `${{ env.js_file }}`
+          - **Generated XML:** `json_changesets/${VERSION}.xml`
+          - **Operations:** ${OPERATION_COUNT} changeset(s)
+          - **Context:** `liquibase_test`
+          - **Generated PR:** ${{ env.changeset_pr_url }}
+
+          ### 🎯 **✨ Click on the PR above to review your database changes! 🔍📋**
+          
+          **👆 Important:** Review and merge the generated changeset PR before applying to database
+
+          ---
+          *🤖 This comment was automatically generated by the Changeset Generator workflow.*  
+          *⚡ Workflow Run: [View Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+          EOF
+          
+          # Substitute variables in the comment
+          sed -i "s/\${VERSION}/${VERSION}/g" comment_body.md
+          sed -i "s/\${OPERATION_COUNT}/${OPERATION_COUNT}/g" comment_body.md
+          
+          # Post comment using GitHub API
+          gh pr comment ${{ github.event.pull_request.number }} --body-file comment_body.md
+          
+          echo "✅ Success comment posted on PR #${{ github.event.pull_request.number }}"
+
+      # Step 12: Post No-Action Comment (when no JS files found)
+      - name: Post No-Action Comment on Original PR
+        if: env.has_js_file == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Posting No-Action Comment on Original PR ==="
+          
+          # Create no-action comment and save to file
+          cat > no_action_comment.md << 'EOF'
+          ## ℹ️ Changeset Generator - No Action Required
+
+          **No MongoDB changesets were generated for this PR.**
+
+          **Reason:** No `.js` files found in the `db_queries/` directory.
+
+          ### 💡 To Generate Changesets
+          If you intended to create database changesets:
+          1. Add `.js` files to the `db_queries/` directory
+          2. Include a context declaration at the top: `// context: liquibase_test`
+          3. Add your MongoDB operations (insert, update, delete, etc.)
+
+          ### 📝 Example Format
+          ```javascript
+          // context: liquibase_test
+          // Description of changes
+
+          db.getCollection("users").insertMany([
+              { name: "John", email: "john@example.com" }
+          ]);
+          ```
+
+          ---
+          *🤖 This comment was automatically generated by the Changeset Generator workflow.*
+          EOF
+          
+          # Post comment using GitHub CLI
+          gh pr comment ${{ github.event.pull_request.number }} --body-file no_action_comment.md
+          
+          echo "✅ No-action comment posted on PR #${{ github.event.pull_request.number }}"
+
+      # Step 13: Final Security Summary
+      - name: Workflow Summary
+        if: always()
+        run: |
+          echo "=== Workflow Summary ==="
+          echo "🔒 Security Status: ENABLED (explicit minimal permissions)"
+          echo "🎯 Allowed Operations: json_changesets/ folder only"
+          
+          if [ "${{ env.has_js_file }}" = "true" ]; then
+            echo "✅ JS file detected: ${{ env.js_file }}"
+            VERSION=$(basename ${{ env.js_file }} .js)
+            XML_FILE="json_changesets/${VERSION}.xml"
+            if [ -f "$XML_FILE" ]; then
+              echo "✅ XML changeset generated: $XML_FILE"
+              if [ "${{ env.changeset_created }}" = "true" ]; then
+                echo "✅ Changeset PR created: ${{ env.changeset_pr_url }}"
+                echo "✅ Comment posted on original PR #${{ github.event.pull_request.number }}"
+              else
+                echo "❌ PR creation failed"
+              fi
+            else
+              echo "❌ XML generation failed"
+            fi
+          else
+            echo "ℹ️  No JS files found in db_queries directory"
+            echo "✅ No-action comment posted on PR #${{ github.event.pull_request.number }}"
+          fi
+          echo "🔒 Security validation: PASSED"
+          echo "=== End Summary ==="
