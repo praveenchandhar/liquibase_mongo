@@ -7,6 +7,7 @@ MONGO_CONNECTION_BASE="mongodb+srv://praveenchandharts:kixIUsDWGd3n6w5S@praveen-
 declare -A DATABASE_CONTEXTS=(
     ["liquibase_test"]="liquibase_test"
     ["sample_mflix"]="sample_mflix"
+    ["liquibase_test_new"]="liquibase_test_new"
 )
 
 # Validate input arguments
